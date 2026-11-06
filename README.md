@@ -15,11 +15,14 @@ The homepage and API health endpoint are starter scaffolding only. World ID veri
 - Planned operational database: PostgreSQL
 - Identity integration in the active phase: World ID
 
-## Run locally
+## Start here
 
-Requirements: Node.js 20.9 or newer.
+The shared starter project is on the `dev` branch. After cloning, switch to it before installing dependencies:
 
 ```bash
+git clone https://github.com/Mechdeta/fairDrop.git
+cd fairDrop
+git switch dev
 npm install
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env.local
