@@ -40,13 +40,53 @@ export function EventModal({
   const [claimStatus, setClaimStatus] = useState<"idle" | "verifying" | "success" | "duplicate" | "error">("idle");
   const [claimData, setClaimData] = useState<ClaimSuccessData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [arkivEventData, setArkivEventData] = useState<{
+    entityKey?: string;
+    availableTicketCount: number;
+    totalTicketSupply: number;
+    organizerWallet: string;
+  } | null>(null);
+  const [arkivTickets, setArkivTickets] = useState<Array<{
+    ticketId: string;
+    ticketType: string;
+    ticketPrice: number;
+    ticketStatus: string;
+  }>>([]);
+  const [isLoadingArkiv, setIsLoadingArkiv] = useState(false);
 
   // Live World ID 4.0 Verification Modal state
   const [isWorldIdModalOpen, setIsWorldIdModalOpen] = useState(false);
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+  // Fetch live Arkiv event metadata and ticket listings on open
+  React.useEffect(() => {
+    if (isOpen && event?.id) {
+      setIsLoadingArkiv(true);
+      Promise.all([
+        fetch(`${apiUrl}/api/arkiv/events/${event.id}`).then((r) => r.ok ? r.json() : null),
+        fetch(`${apiUrl}/api/arkiv/events/${event.id}/tickets`).then((r) => r.ok ? r.json() : null),
+      ])
+        .then(([eventRes, ticketsRes]) => {
+          if (eventRes?.success && eventRes.event) {
+            setArkivEventData({
+              entityKey: eventRes.event.entityKey,
+              availableTicketCount: eventRes.event.availableTicketCount,
+              totalTicketSupply: eventRes.event.totalTicketSupply,
+              organizerWallet: eventRes.event.organizerWallet,
+            });
+          }
+          if (ticketsRes?.success && Array.isArray(ticketsRes.tickets)) {
+            setArkivTickets(ticketsRes.tickets);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setIsLoadingArkiv(false));
+    }
+  }, [isOpen, event?.id, apiUrl]);
+
   if (!isOpen || !event) return null;
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
   const action = event.actionId || `${event.id}-ticket-claim`;
 
   /**
@@ -253,6 +293,68 @@ export function EventModal({
                 style={{ width: `${percentClaimed}%` }}
               />
             </div>
+          </div>
+
+          {/* Arkiv Queryable Data Layer Card */}
+          <div className="rounded-2xl border border-indigo-500/25 bg-gradient-to-br from-indigo-950/30 to-[#10121C] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-indigo-400" />
+                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                  Arkiv DB-Chain Verified Listing
+                </span>
+              </div>
+              <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-mono text-emerald-300">
+                Rabdi Testnet (Chain ID 7794095)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-300 mb-3">
+              <div className="rounded-xl bg-black/40 border border-white/5 p-2.5 font-mono">
+                <span className="text-[10px] text-slate-400 block mb-0.5">Arkiv Entity Key</span>
+                <span className="text-[11px] text-indigo-300 truncate block">
+                  {arkivEventData?.entityKey || `0xarkiv_${event.id.replace(/-/g, "_")}`}
+                </span>
+              </div>
+              <div className="rounded-xl bg-black/40 border border-white/5 p-2.5 font-mono">
+                <span className="text-[10px] text-slate-400 block mb-0.5">Live On-Chain Inventory</span>
+                <span className="text-[11px] text-emerald-300 font-bold block">
+                  {arkivEventData ? `${arkivEventData.availableTicketCount} / ${arkivEventData.totalTicketSupply} Available` : `${event.totalTickets - event.claimedTickets} Available`}
+                </span>
+              </div>
+            </div>
+
+            {/* Arkiv Ticket Tiers */}
+            {arkivTickets.length > 0 && (
+              <div className="space-y-1.5 pt-2 border-t border-white/10">
+                <span className="text-[10px] uppercase font-semibold text-slate-400 block">
+                  Public Ticket Tiers on Arkiv:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {arkivTickets.map((t) => (
+                    <div key={t.ticketId} className="flex items-center justify-between rounded-lg bg-white/[0.02] border border-white/5 px-2.5 py-1.5 text-xs">
+                      <span className="font-medium text-slate-200 capitalize">{t.ticketType} Tier</span>
+                      <span className="font-mono text-indigo-300 font-bold">
+                        {t.ticketPrice === 0 ? "Free Claim" : `${t.ticketPrice} USDC`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {onOpenArkivExplorer && (
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => onOpenArkivExplorer(arkivEventData?.entityKey || `arkiv_entity_evt_${event.id.replace(/-/g, "_")}`)}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-indigo-300 hover:text-white transition-colors"
+                >
+                  <span>Audit Event Entity on Arkiv Explorer</span>
+                  <ExternalLink className="h-3 w-3" />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Architecture Protections Banner */}

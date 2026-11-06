@@ -219,6 +219,7 @@ export default function Home() {
         {/* Event Discovery Section */}
         <EventsSection
           onSelectEvent={(event) => setSelectedEvent(event)}
+          onOpenArkivExplorer={handleOpenArkivExplorer}
         />
 
         {/* How It Works Section */}

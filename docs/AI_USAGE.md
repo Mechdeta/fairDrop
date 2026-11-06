@@ -152,6 +152,27 @@ Record meaningful AI-assisted work here. Add one entry per substantial task.
   - Production build: passed successfully.
 - **Related commit/PR:** Feature branch `feature/arkiv-arc-integration`.
 
+## 2026-11-07 — Arkiv Queryable Ticket Listing Data Layer Integration (ETHGlobal Mumbai)
+
+- **Tool/model:** Antigravity (Gemini 3.8 Flash High)
+- **Team member:** FairDrop Web3 & Protocol Team
+- **Task:** Complete production-grade Arkiv integration making Arkiv an active, queryable Web3 data layer for event and ticket listings.
+- **Prompt or instruction summary:** Integrate official `@arkiv-network/sdk@1.0.1` and `viem` on Rabdi Testnet (Chain ID 7794095). Implement typed schemas (`fairdrop.event.v1`, `fairdrop.ticket.v1`, `fairdrop.allocation.v1`), composable query builders, atomic allocation recording with inventory decrements, local snapshot cache and outbox retry engine. Connect frontend (`EventsSection.tsx`, `EventModal.tsx`) so events and tickets are genuinely read from Arkiv. Implement comprehensive automated test suite (14 new integration tests, 52/52 passing total). Author complete documentation under `arkiv/` (`schema.md`, `friction.md`, `reach.md`, `why-arkiv.md`, `how-you-use-arkiv.md`), update `README.md`, `backend/.env.example`, and add `LICENSE`.
+- **Output used:**
+  - `backend/src/integrations/arkiv/`: `arkiv.config.ts`, `arkiv.schemas.ts`, `arkiv.types.ts`, `arkiv.client.ts`, `arkiv.queries.ts`, `arkiv.service.ts`, `index.ts`.
+  - `backend/src/routes/arkiv.routes.ts`: `/api/arkiv/status`, `/api/arkiv/events`, `/api/arkiv/events/:id`, `/api/arkiv/events/:id/tickets`, `/api/arkiv/allocations`, `/api/arkiv/outbox/process`.
+  - `frontend/src/components/EventsSection.tsx`: Dynamic event queries from Arkiv, category/city filtering, Rabdi testnet status badge.
+  - `frontend/src/components/EventModal.tsx`: Event entity details, live remaining availability counter, ticket tiers, audit link to Rabdi Explorer.
+  - `backend/src/__tests__/arkiv.integration.test.ts`: 14 tests for event creation, filtering, allocations, inventory mutation, outbox processing, and testnet health.
+  - `arkiv/` documentation suite: `schema.md`, `friction.md`, `reach.md`, `why-arkiv.md`, `how-you-use-arkiv.md`.
+  - Updated `README.md`, `backend/.env.example`, and added `LICENSE`.
+- **Human review, changes, and tests:**
+  - Validated connection to live Rabdi testnet node (`https://rpc.rabdi.db-chain.testnet.arkiv.network`, Chain ID `7794095`).
+  - Ran backend test suite with Vitest: 52/52 tests passing.
+  - Monorepo typecheck: 0 errors across frontend and backend.
+  - Production build: both frontend and backend built successfully.
+- **Related commit/PR:** Feature branch `feature/arkiv-ticket-listings`.
+
 ## Entry template
 
 - **Date:**
