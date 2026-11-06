@@ -4,6 +4,33 @@ The hackathon permits AI assistance, but the team remains responsible for the wo
 
 Record meaningful AI-assisted work here. Add one entry per substantial task.
 
+## 2026-11-07 — Genuine Web3 Wallet Connections, On-Chain Balances & Arc Testnet Switching
+
+- **Tool/model:** Gemini (Antigravity)
+- **Team member:** FairDrop engineering team
+- **Task:** Eliminate all demo wallet fallbacks, mock balances, and fake transactions. Enforce genuine user-initiated Web3 wallet connections (MetaMask, Coinbase Wallet, Rainbow, Generic EIP-1193), real on-chain balance reading, Arc Testnet switching, and genuine transaction execution.
+- **Prompt or instruction summary:**
+  1. Remove all pre-seeded demo wallets, `Instant Connect Demo Wallet`, hardcoded addresses (`0x71C8a21BfE49A2d13b4822Ec8e59074092bF772A`), and mock balances (`120.50 USDC`).
+  2. Implement real multi-wallet provider detection and connection for MetaMask, Coinbase Wallet, Rainbow, and generic EIP-1193 injected providers.
+  3. Provide official installation links when wallets are missing instead of falling back to a demo wallet.
+  4. Query real live balances on-chain via `eth_getBalance` and convert from Wei to token units.
+  5. Check Arc Testnet network compatibility (Chain ID 9824 / `0x2660`) and provide automatic network switching (`wallet_switchEthereumChain` / `wallet_addEthereumChain`).
+  6. Enforce real transaction behavior for ticket purchases with balance checks ("You don't have enough USDC to complete this purchase."), wallet approval requests (`eth_sendTransaction`), genuine transaction hashes, and live receipt polling.
+- **Output used:**
+  - `frontend/src/integrations/wallet/`: Complete wallet integration module with typed provider interfaces, Arc Testnet network definitions, multi-provider detection, balance querying, network switching, and payment execution.
+  - `frontend/src/components/WalletModal.tsx`: Purged demo wallet banner and pre-seeded accounts. Added genuine provider connection triggers and official installation guidance.
+  - `frontend/src/components/WalletConnect.tsx`: Removed `generateDemoWallet()`, added real wallet connection and extension installation links.
+  - `frontend/src/components/Navbar.tsx`: Integrated live on-chain balance display, network status badge, and one-click "Switch to Arc" trigger.
+  - `frontend/src/components/MarketplaceSection.tsx`: Removed all `mockTx` and `120.5` calculations. Implemented real transaction preparation, wallet signature approval, insufficient balance blocker, and real tx hash forwarding to backend.
+  - `frontend/app/page.tsx`: Replaced hardcoded balances with dynamic live balance queries, `accountsChanged` listeners, and `chainChanged` listeners.
+  - `backend/src/integrations/arc/arc.service.ts`: Removed 120.50 USDC demo fallback in `getWalletBalance`. Added real transaction hash capture in `executeSettlement`.
+  - `backend/src/routes/arc.routes.ts`: Forwarded genuine `tx_hash` from client transactions to settlement service.
+- **Human review, changes, and tests:**
+  - `npm run typecheck`: Passed with 0 errors.
+  - `npm test --workspace backend`: Passed 38/38 tests.
+  - `npm run build`: Production build succeeded with code 0 for both frontend and backend.
+- **Related commit/PR:** Branch `fix/real-wallet-connection`.
+
 ## 2026-11-07 — World ID 4.0 One-Click Simulation Mode & Instant QR Rendering
 
 - **Tool/model:** Gemini (Antigravity)

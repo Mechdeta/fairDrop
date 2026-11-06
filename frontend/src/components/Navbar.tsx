@@ -1,12 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ShieldCheck, Wallet, Menu, X, ArrowUpRight, Activity } from "lucide-react";
+import { ShieldCheck, Wallet, Menu, X, ArrowUpRight, Activity, RefreshCw } from "lucide-react";
 
 interface NavbarProps {
   onOpenWalletModal: () => void;
   walletAddress: string | null;
-  walletBalance: string;
+  walletBalance: string | null;
+  currencySymbol?: string;
+  chainId?: number | null;
+  isArcTestnet?: boolean;
+  isLoadingBalance?: boolean;
+  onSwitchToArc?: () => void;
   onDisconnectWallet: () => void;
 }
 
@@ -14,6 +19,11 @@ export function Navbar({
   onOpenWalletModal,
   walletAddress,
   walletBalance,
+  currencySymbol = "USDC",
+  chainId = null,
+  isArcTestnet = false,
+  isLoadingBalance = false,
+  onSwitchToArc,
   onDisconnectWallet,
 }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -140,14 +150,36 @@ export function Navbar({
             <div className="flex items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-950/30 p-1.5 pl-3">
               <div className="flex flex-col text-left">
                 <div className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span className={`h-1.5 w-1.5 rounded-full ${isArcTestnet ? "bg-emerald-400" : "bg-amber-400"}`} />
                   <span className="font-mono text-xs font-semibold text-white">
                     {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
                   </span>
+                  {isArcTestnet ? (
+                    <span className="rounded bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.2 text-[9px] font-mono text-emerald-300">
+                      Arc
+                    </span>
+                  ) : onSwitchToArc ? (
+                    <button
+                      type="button"
+                      onClick={onSwitchToArc}
+                      className="rounded bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.2 text-[9px] font-mono text-amber-300 hover:bg-amber-500/30 transition-colors"
+                      title="Click to switch to Arc Testnet"
+                    >
+                      Switch to Arc
+                    </button>
+                  ) : null}
                 </div>
-                <span className="text-[10px] text-violet-300 font-mono">
-                  {walletBalance} USDC
-                </span>
+                <div className="flex items-center gap-1">
+                  {isLoadingBalance ? (
+                    <span className="text-[10px] text-slate-400 font-mono animate-pulse">
+                      Loading live balance...
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-violet-300 font-mono font-medium">
+                      {walletBalance !== null ? `${walletBalance} ${currencySymbol}` : "Balance unavailable"}
+                    </span>
+                  )}
+                </div>
               </div>
               <button
                 type="button"
@@ -226,7 +258,7 @@ export function Navbar({
                 </span>
               </div>
 
-              {!walletAddress && (
+              {!walletAddress ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -238,6 +270,29 @@ export function Navbar({
                   <Wallet className="h-4 w-4" />
                   <span>Connect Web3 Wallet</span>
                 </button>
+              ) : (
+                <div className="rounded-xl border border-violet-500/20 bg-white/[0.02] p-3 text-xs">
+                  <div className="flex justify-between items-center text-slate-300">
+                    <span>Connected:</span>
+                    <span className="font-mono text-white">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-300 mt-2">
+                    <span>Balance:</span>
+                    <span className="font-mono text-violet-300 font-semibold">{walletBalance} {currencySymbol}</span>
+                  </div>
+                  {!isArcTestnet && onSwitchToArc && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        onSwitchToArc();
+                      }}
+                      className="mt-3 w-full rounded-lg bg-amber-500/20 border border-amber-500/40 py-1.5 text-xs font-semibold text-amber-200"
+                    >
+                      Switch to Arc Testnet
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>

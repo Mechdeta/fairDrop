@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Navbar } from "../src/components/Navbar";
 import { HeroSection } from "../src/components/HeroSection";
 import { EventsSection } from "../src/components/EventsSection";
@@ -13,63 +13,183 @@ import { EventModal } from "../src/components/EventModal";
 import { WalletModal } from "../src/components/WalletModal";
 import { ArkivExplorerModal } from "../src/components/ArkivExplorerModal";
 import { FairDropEvent } from "../src/data/mockData";
+import {
+  EIP1193Provider,
+  fetchWalletBalance,
+  switchOrAddArcNetwork,
+  isArcChain,
+  getProviderForWallet,
+} from "../src/integrations/wallet";
 
 export default function Home() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [walletBalance, setWalletBalance] = useState<string>("120.50");
+  const [walletBalance, setWalletBalance] = useState<string | null>(null);
+  const [currencySymbol, setCurrencySymbol] = useState<string>("USDC");
+  const [chainId, setChainId] = useState<number | null>(null);
+  const [isArcTestnet, setIsArcTestnet] = useState<boolean>(false);
+  const [isLoadingBalance, setIsLoadingBalance] = useState<boolean>(false);
+  const [activeProvider, setActiveProvider] = useState<EIP1193Provider | null>(null);
+
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isArkivModalOpen, setIsArkivModalOpen] = useState(false);
   const [arkivSearchEntityId, setArkivSearchEntityId] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<FairDropEvent | null>(null);
 
-  // Auto-detect previously connected MetaMask account & listen to account switches
+  /**
+   * Refreshes real live on-chain balance for the connected wallet
+   */
+  const loadWalletBalance = useCallback(
+    async (provider: EIP1193Provider, address: string, targetChainId: number | null) => {
+      setIsLoadingBalance(true);
+      try {
+        const bal = await fetchWalletBalance(provider, address, targetChainId);
+        setWalletBalance(bal.balance);
+        setCurrencySymbol(bal.symbol);
+      } catch {
+        setWalletBalance("0.00");
+      } finally {
+        setIsLoadingBalance(false);
+      }
+    },
+    []
+  );
+
+  /**
+   * Reads full wallet state (address, chain ID, live balance)
+   */
+  const syncWalletState = useCallback(
+    async (provider: EIP1193Provider, address: string) => {
+      setWalletAddress(address);
+      setActiveProvider(provider);
+
+      try {
+        const hexChainId = (await provider.request({
+          method: "eth_chainId",
+        })) as string;
+        const parsedChainId = parseInt(hexChainId, 16);
+        setChainId(parsedChainId);
+        const onArc = isArcChain(parsedChainId);
+        setIsArcTestnet(onArc);
+        await loadWalletBalance(provider, address, parsedChainId);
+      } catch (err) {
+        console.warn("Failed to query chain state:", err);
+      }
+    },
+    [loadWalletBalance]
+  );
+
+  // Auto-detect previously authorized accounts via EIP-1193 eth_accounts
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const anyWindow = window as unknown as {
-      ethereum?: {
-        request: (args: { method: string; params?: unknown[] }) => Promise<string[]>;
-        on?: (event: string, handler: (...args: unknown[]) => void) => void;
-        removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
-      };
+    const provider = getProviderForWallet("generic");
+    if (!provider || typeof provider.request !== "function") return;
+
+    setActiveProvider(provider);
+
+    provider
+      .request({ method: "eth_accounts" })
+      .then(async (accountsRaw) => {
+        const accounts = accountsRaw as string[];
+        if (accounts && accounts.length > 0 && accounts[0]) {
+          const address = accounts[0].trim();
+          await syncWalletState(provider, address);
+        }
+      })
+      .catch(() => {});
+
+    // Listen for account switches
+    const handleAccountsChanged = async (accountsRaw: unknown) => {
+      const accs = accountsRaw as string[];
+      if (accs && accs.length > 0 && accs[0]) {
+        const newAddress = accs[0].trim();
+        await syncWalletState(provider, newAddress);
+      } else {
+        // User disconnected in wallet extension
+        setWalletAddress(null);
+        setWalletBalance(null);
+        setChainId(null);
+        setIsArcTestnet(false);
+      }
     };
 
-    const eth = anyWindow.ethereum;
-    if (eth && typeof eth.request === "function") {
-      // Check if user is already authorized
-      eth
-        .request({ method: "eth_accounts" })
-        .then((accounts) => {
-          if (accounts && accounts.length > 0 && accounts[0]) {
-            setWalletAddress(accounts[0].trim());
-          }
-        })
-        .catch(() => {});
+    // Listen for network switches
+    const handleChainChanged = async (hexChainIdRaw: unknown) => {
+      const hex = hexChainIdRaw as string;
+      const newChainId = parseInt(hex, 16);
+      setChainId(newChainId);
+      const onArc = isArcChain(newChainId);
+      setIsArcTestnet(onArc);
 
-      const handleAccountsChanged = (accounts: unknown) => {
-        const accs = accounts as string[];
-        if (accs && accs.length > 0 && accs[0]) {
-          setWalletAddress(accs[0].trim());
-        } else {
-          setWalletAddress(null);
-        }
-      };
+      // Re-fetch live balance on new network
+      if (walletAddress) {
+        await loadWalletBalance(provider, walletAddress, newChainId);
+      }
+    };
 
-      eth.on?.("accountsChanged", handleAccountsChanged);
+    provider.on?.("accountsChanged", handleAccountsChanged);
+    provider.on?.("chainChanged", handleChainChanged);
 
-      return () => {
-        eth.removeListener?.("accountsChanged", handleAccountsChanged);
-      };
+    return () => {
+      provider.removeListener?.("accountsChanged", handleAccountsChanged);
+      provider.removeListener?.("chainChanged", handleChainChanged);
+    };
+  }, [syncWalletState, loadWalletBalance, walletAddress]);
+
+  /**
+   * User connected through genuine wallet modal
+   */
+  const handleConnectWallet = async (
+    address: string,
+    initialChainId?: number,
+    provider?: EIP1193Provider
+  ) => {
+    const activeProv = provider || activeProvider || getProviderForWallet("generic");
+    if (activeProv) {
+      await syncWalletState(activeProv, address);
+    } else {
+      setWalletAddress(address);
+      if (initialChainId) {
+        setChainId(initialChainId);
+        setIsArcTestnet(isArcChain(initialChainId));
+      }
     }
-  }, []);
-
-  const handleConnectWallet = (address: string) => {
-    setWalletAddress(address);
-    setWalletBalance("120.50");
   };
 
+  /**
+   * User manually disconnects wallet in UI
+   */
   const handleDisconnectWallet = () => {
     setWalletAddress(null);
+    setWalletBalance(null);
+    setChainId(null);
+    setIsArcTestnet(false);
+    setActiveProvider(null);
+  };
+
+  /**
+   * Prompts wallet to switch or add Arc Testnet (Chain ID 9824)
+   */
+  const handleSwitchToArc = async (): Promise<boolean> => {
+    const prov = activeProvider || getProviderForWallet("generic");
+    if (!prov) return false;
+
+    try {
+      const result = await switchOrAddArcNetwork(prov);
+      if (result.success) {
+        setChainId(result.chainId);
+        setIsArcTestnet(true);
+        if (walletAddress) {
+          await loadWalletBalance(prov, walletAddress, result.chainId);
+        }
+        return true;
+      }
+      return false;
+    } catch (err: unknown) {
+      const anyErr = err as { message?: string };
+      console.error("Arc network switch error:", anyErr.message);
+      throw err;
+    }
   };
 
   const handleOpenArkivExplorer = (entityId?: string) => {
@@ -84,6 +204,11 @@ export default function Home() {
         onOpenWalletModal={() => setIsWalletModalOpen(true)}
         walletAddress={walletAddress}
         walletBalance={walletBalance}
+        currencySymbol={currencySymbol}
+        chainId={chainId}
+        isArcTestnet={isArcTestnet}
+        isLoadingBalance={isLoadingBalance}
+        onSwitchToArc={handleSwitchToArc}
         onDisconnectWallet={handleDisconnectWallet}
       />
 
@@ -105,8 +230,18 @@ export default function Home() {
         {/* Secondary Ticket Marketplace Preview */}
         <MarketplaceSection
           walletAddress={walletAddress}
+          walletBalance={walletBalance}
+          chainId={chainId}
+          isArcTestnet={isArcTestnet}
+          activeProvider={activeProvider}
           onOpenWalletModal={() => setIsWalletModalOpen(true)}
           onOpenArkivExplorer={handleOpenArkivExplorer}
+          onSwitchToArc={handleSwitchToArc}
+          onRefreshBalance={async () => {
+            if (activeProvider && walletAddress) {
+              await loadWalletBalance(activeProvider, walletAddress, chainId);
+            }
+          }}
           onUpdateWalletBalance={(newBal) => setWalletBalance(newBal)}
         />
 

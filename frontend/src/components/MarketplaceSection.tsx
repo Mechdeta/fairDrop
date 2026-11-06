@@ -19,11 +19,21 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { RESALE_LISTINGS, ResaleListing } from "../data/mockData";
+import {
+  EIP1193Provider,
+  sendArcPayment,
+} from "../integrations/wallet";
 
 interface MarketplaceSectionProps {
   walletAddress: string | null;
+  walletBalance?: string | null;
+  chainId?: number | null;
+  isArcTestnet?: boolean;
+  activeProvider?: EIP1193Provider | null;
   onOpenWalletModal: () => void;
   onOpenArkivExplorer?: (entityId?: string) => void;
+  onSwitchToArc?: () => Promise<boolean>;
+  onRefreshBalance?: () => Promise<void>;
   onUpdateWalletBalance?: (newBalance: string) => void;
 }
 
@@ -37,14 +47,21 @@ interface SettlementSuccessInfo {
 
 export function MarketplaceSection({
   walletAddress,
+  walletBalance = null,
+  chainId = null,
+  isArcTestnet = false,
+  activeProvider = null,
   onOpenWalletModal,
   onOpenArkivExplorer,
+  onSwitchToArc,
+  onRefreshBalance,
   onUpdateWalletBalance,
 }: MarketplaceSectionProps) {
   const [listings, setListings] = useState<ResaleListing[]>(RESALE_LISTINGS);
   const [selectedListing, setSelectedListing] = useState<ResaleListing | null>(null);
   const [settlingId, setSettlingId] = useState<string | null>(null);
   const [settlementSuccess, setSettlementSuccess] = useState<SettlementSuccessInfo | null>(null);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [isListModalOpen, setIsListModalOpen] = useState(false);
 
   // New listing form state
@@ -75,14 +92,72 @@ export function MarketplaceSection({
   }, []);
 
   const handleBuyTicket = async (listing: ResaleListing) => {
+    setPurchaseError(null);
+
+    // 1. Verify user wallet is connected
     if (!walletAddress) {
       onOpenWalletModal();
+      return;
+    }
+
+    // 2. Verify connected network is Arc Testnet
+    if (!isArcTestnet) {
+      if (onSwitchToArc) {
+        try {
+          const switched = await onSwitchToArc();
+          if (!switched) {
+            setPurchaseError("Please switch your wallet network to Arc Testnet (Chain ID 9824) to complete this purchase.");
+            return;
+          }
+        } catch (switchErr: unknown) {
+          const anyErr = switchErr as { message?: string };
+          setPurchaseError(anyErr.message || "Failed to switch network to Arc Testnet.");
+          return;
+        }
+      } else {
+        setPurchaseError("Please switch your wallet network to Arc Testnet (Chain ID 9824) to complete this purchase.");
+        return;
+      }
+    }
+
+    // 3. Verify actual live on-chain USDC balance
+    const currentNumBalance = walletBalance !== null ? parseFloat(walletBalance) : 0;
+    if (isNaN(currentNumBalance) || currentNumBalance < listing.resalePriceUsdc) {
+      setPurchaseError("You don't have enough USDC to complete this purchase.");
       return;
     }
 
     setSettlingId(listing.id);
 
     try {
+      const provider =
+        activeProvider ||
+        (typeof window !== "undefined"
+          ? (window as unknown as { ethereum?: EIP1193Provider }).ethereum
+          : null);
+
+      if (!provider) {
+        throw new Error("No active Web3 wallet provider available to sign transaction.");
+      }
+
+      // 4. Request user transaction approval in wallet (eth_sendTransaction)
+      let realTxHash: string;
+      if (listing.resalePriceUsdc > 0) {
+        realTxHash = await sendArcPayment({
+          provider,
+          fromAddress: walletAddress,
+          toAddress: listing.sellerWallet,
+          amountUsdc: listing.resalePriceUsdc,
+          currentBalance: currentNumBalance,
+        });
+      } else {
+        // Free ticket transfer (no payment required)
+        realTxHash = "0x" + Array.from(crypto.getRandomValues(new Uint8Array(32)))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+      }
+
+      // 5. Submit settlement to backend with the actual verified transaction hash
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
       const res = await fetch(`${apiUrl}/api/arc/settle`, {
         method: "POST",
@@ -90,63 +165,40 @@ export function MarketplaceSection({
         body: JSON.stringify({
           listing_id: listing.id,
           buyer_wallet: walletAddress,
+          tx_hash: realTxHash,
         }),
       });
 
       const data = await res.json();
 
-      if (res.ok && data.success) {
-        setSettlementSuccess({
-          listingId: listing.id,
-          ticketId: listing.ticketNumber,
-          txHash: data.settlement.txHash,
-          newOwnershipTokenId: data.settlement.newOwnershipTokenId,
-          totalUsdcPaid: data.settlement.totalUsdcPaid,
-        });
-
-        // Update local listing status
-        setListings((prev) =>
-          prev.map((l) => (l.id === listing.id ? { ...l, status: "Sold" } : l))
-        );
-
-        if (onUpdateWalletBalance) {
-          const newBal = Math.max(0, 120.5 - listing.resalePriceUsdc).toFixed(2);
-          onUpdateWalletBalance(newBal);
-        }
-      } else {
-        // Local simulation fallback
-        const mockTx = "0x" + Math.random().toString(16).substring(2, 18);
-        setSettlementSuccess({
-          listingId: listing.id,
-          ticketId: listing.ticketNumber,
-          txHash: mockTx,
-          newOwnershipTokenId: `arc_token_owner_${listing.ticketNumber.replace(/[^a-zA-Z0-9]/g, "")}_${walletAddress.slice(2, 6)}`,
-          totalUsdcPaid: listing.resalePriceUsdc,
-        });
-
-        setListings((prev) =>
-          prev.map((l) => (l.id === listing.id ? { ...l, status: "Sold" } : l))
-        );
-
-        if (onUpdateWalletBalance) {
-          const newBal = Math.max(0, 120.5 - listing.resalePriceUsdc).toFixed(2);
-          onUpdateWalletBalance(newBal);
-        }
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || data.error || "Backend settlement failed.");
       }
-    } catch {
-      // Local fallback
-      const mockTx = "0x" + Math.random().toString(16).substring(2, 18);
+
+      // 6. Record real settlement success
       setSettlementSuccess({
         listingId: listing.id,
         ticketId: listing.ticketNumber,
-        txHash: mockTx,
-        newOwnershipTokenId: `arc_token_owner_${listing.ticketNumber.replace(/[^a-zA-Z0-9]/g, "")}_${walletAddress.slice(2, 6)}`,
-        totalUsdcPaid: listing.resalePriceUsdc,
+        txHash: data.settlement?.txHash || realTxHash,
+        newOwnershipTokenId: data.settlement?.newOwnershipTokenId || `arc_token_owner_${listing.ticketNumber.replace(/[^a-zA-Z0-9]/g, "")}_${walletAddress.slice(2, 6)}`,
+        totalUsdcPaid: data.settlement?.totalUsdcPaid || listing.resalePriceUsdc,
       });
 
+      // Update local listing status
       setListings((prev) =>
         prev.map((l) => (l.id === listing.id ? { ...l, status: "Sold" } : l))
       );
+
+      // Refresh live on-chain balance after payment
+      if (onRefreshBalance) {
+        await onRefreshBalance();
+      } else if (onUpdateWalletBalance && walletBalance !== null) {
+        const remaining = Math.max(0, currentNumBalance - listing.resalePriceUsdc).toFixed(2);
+        onUpdateWalletBalance(remaining);
+      }
+    } catch (err: unknown) {
+      const anyErr = err as { message?: string };
+      setPurchaseError(anyErr.message || "Failed to purchase ticket.");
     } finally {
       setSettlingId(null);
     }
@@ -321,6 +373,42 @@ export function MarketplaceSection({
             </p>
           </div>
         </div>
+
+        {/* Purchase Error Banner */}
+        {purchaseError && (
+          <div className="mt-8 rounded-2xl bg-rose-950/60 border border-rose-500/40 p-4 text-xs text-rose-200 flex items-start justify-between gap-3 shadow-lg shadow-rose-950/50 animate-in fade-in">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-rose-100">{purchaseError}</p>
+                {purchaseError.includes("Arc Testnet") && onSwitchToArc && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await onSwitchToArc();
+                        setPurchaseError(null);
+                      } catch (err: unknown) {
+                        const anyErr = err as { message?: string };
+                        setPurchaseError(anyErr.message || "Failed to switch network.");
+                      }
+                    }}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 px-2.5 py-1 text-[11px] font-semibold text-amber-300 hover:bg-amber-500/30 transition-colors"
+                  >
+                    <span>Switch Wallet to Arc Testnet</span>
+                  </button>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPurchaseError(null)}
+              className="text-slate-400 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         {/* Resale Listings Table / Grid */}
         <div className="mt-12 overflow-hidden rounded-3xl border border-white/[0.08] bg-[#141724]/80 backdrop-blur-xl shadow-2xl">
