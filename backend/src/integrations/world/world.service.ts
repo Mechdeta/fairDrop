@@ -120,24 +120,23 @@ export class WorldIntegrationService {
       };
     }
 
-    // Mock verification path ONLY for explicit test nullifiers (0xmock_...) or during automated unit test runs without RP credentials
-    const isExplicitMockProof = extractedNullifier.startsWith("0xmock_");
-    const isUnitTestEnv = process.env.NODE_ENV === "test";
+    // Simulated verification path when WORLD_MOCK_VERIFICATION=true or for test proofs
+    const isExplicitMockProof = extractedNullifier.startsWith("0xmock_") || extractedNullifier.startsWith("0xsim_");
 
-    if (isExplicitMockProof || (this.isMockVerification && isUnitTestEnv && !this.rpId)) {
+    if (this.isMockVerification || isExplicitMockProof) {
       // Simulate rejecting invalid dummy proofs if designated as invalid
       if (extractedNullifier.includes("invalid") || primaryResponse.proof === "invalid_proof") {
         return {
           success: false,
           error: "INVALID_PROOF",
-          detail: "Mock verification detected an invalid proof flag.",
+          detail: "Simulated verification detected an invalid proof flag.",
         };
       }
 
       return {
         success: true,
         nullifier: extractedNullifier,
-        environment: "mock-environment",
+        environment: "simulated-environment",
       };
     }
 

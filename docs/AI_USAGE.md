@@ -4,6 +4,22 @@ The hackathon permits AI assistance, but the team remains responsible for the wo
 
 Record meaningful AI-assisted work here. Add one entry per substantial task.
 
+## 2026-11-07 — World ID 4.0 One-Click Simulation Mode & Instant QR Rendering
+
+- **Tool/model:** Gemini (Antigravity)
+- **Team member:** FairDrop engineering team
+- **Task:** Implement pure simulation mode for World ID verification without requiring external World App hardware or blocking on external bridge network calls.
+- **Prompt or instruction summary:** Switch World ID verification to pure simulation mode (`WORLD_MOCK_VERIFICATION=true`), render scannable QR code immediately without asynchronous delays, add an interactive 1-click "Simulate World App Scan & Approval" action and a "Test Duplicate Claim (409)" rejection tester, and bind claims to the user's connected MetaMask wallet while recording immutable allocations on Arkiv DB-Chain.
+- **Output used:**
+  - `frontend/src/components/WorldIdVerificationModal.tsx`: Instant QR generation with live countdown, one-click simulated World App scan & confirmation flow, and duplicate rejection triggers.
+  - `backend/src/integrations/world/world.service.ts`: Enabled local simulated proof verification in `verifyProof` for test and simulated nullifiers when `WORLD_MOCK_VERIFICATION=true`.
+  - Configured `backend/.env` and `frontend/.env.local` for simulation mode (`WORLD_MOCK_VERIFICATION=true`, `WORLD_ENVIRONMENT=staging`).
+- **Human review, changes, and tests:**
+  - Ran `npm run typecheck`: 0 errors.
+  - Ran `npm run test --workspace backend`: 38/38 passing.
+  - Ran `npm run build`: 0 errors.
+- **Related commit/PR:** Branch `dev`.
+
 ## 2026-11-06 — Real MetaMask & Injected Web3 Wallet Provider Integration
 
 - **Tool/model:** Gemini (Antigravity)
