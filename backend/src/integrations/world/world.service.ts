@@ -15,7 +15,13 @@ export class WorldIntegrationService {
   }
 
   public get signingKey(): string {
-    return this.customSigningKey ?? process.env.WORLD_RP_SIGNING_KEY ?? process.env.RP_SIGNING_KEY ?? "";
+    return (
+      this.customSigningKey ??
+      process.env.WORLD_SIGNING_KEY ??
+      process.env.WORLD_RP_SIGNING_KEY ??
+      process.env.RP_SIGNING_KEY ??
+      ""
+    );
   }
 
   public get environment(): "production" | "staging" | "sandbox" {
