@@ -173,6 +173,26 @@ Record meaningful AI-assisted work here. Add one entry per substantial task.
   - Production build: both frontend and backend built successfully.
 - **Related commit/PR:** Feature branch `feature/arkiv-ticket-listings`.
 
+## 2026-11-07 — Official World ID IDKit Verification Fix & Real World App Flow
+
+- **Tool/model:** Antigravity (Gemini 3.8 Flash High)
+- **Team member:** FairDrop Web3 & Security Team
+- **Task:** Eliminate fake QR code generation, mock proofs, and simulated approval; integrate official `@worldcoin/idkit@4.6.0` IDKitRequestWidget for authentic World App verification.
+- **Prompt or instruction summary:** Diagnose root cause of mobile World App error ("Something went wrong. We couldn't complete that request. Please try again."). Replace manual fake QR generator with official `@worldcoin/idkit` IDKitRequestWidget connected to World Bridge. Implement server-side verification using official World ID API v4 (`https://developer.world.org/api/v4/verify/{rp_id}`). Disable `WORLD_MOCK_VERIFICATION`, reject mock/simulated proofs in live mode, enforce event-scoped duplicate claim prevention, add 13 security/integration tests, and ensure typecheck and production builds pass.
+- **Output used:**
+  - `frontend/src/components/WorldIdVerificationModal.tsx`: Complete rewrite using official `IDKitRequestWidget` with dynamic import, real World Bridge session initialization, backend RP signature handling, and authoritative error reporting.
+  - `frontend/src/components/EventModal.tsx`: Removed `handleSimulateClaim` and `(Dev Mock)` button; strict real wallet and World ID verification gates.
+  - `frontend/src/components/WorldIdClaimWidget.tsx`: Removed simulated proof methods and buttons.
+  - `backend/src/integrations/world/world.service.ts`: Strict real-mode validation against `developer.world.org/api/v4/verify/{rp_id}`, authoritative nullifier extraction, mock proof rejection in live mode, and structured logging.
+  - `backend/src/routes/world.routes.ts`: Action validation against registered FairDrop events to prevent arbitrary untrusted actions.
+  - `backend/src/__tests__/world-id.real-verification.test.ts`: 13 comprehensive tests covering real verification, invalid proofs, malformed responses, action mismatch, network failure, duplicate claim prevention across multiple wallets, and mock proof rejection.
+  - `backend/vitest.config.ts`: Vitest configuration excluding `dist` and setting 15s test timeout.
+- **Human review, changes, and tests:**
+  - 46/46 tests passed in Vitest across all 4 suites.
+  - Monorepo typecheck passed with 0 errors.
+  - Production build passed for both frontend and backend.
+- **Related commit/PR:** Branch `fix/world-id-real-verification`.
+
 ## Entry template
 
 - **Date:**

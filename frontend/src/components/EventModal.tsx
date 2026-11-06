@@ -109,82 +109,6 @@ export function EventModal({
     setClaimStatus("success");
   };
 
-  /**
-   * Secondary fallback for offline sandbox testing when without a phone or World App simulator
-   */
-  const handleSimulateClaim = async () => {
-    if (!walletAddress) {
-      onOpenWalletModal();
-      return;
-    }
-
-    setClaimStatus("verifying");
-    setErrorMessage(null);
-
-    const mockNullifier = "0xmock_human_" + walletAddress.slice(2, 10).toLowerCase() + "_" + event.id.slice(0, 4);
-    const proofPayload = {
-      protocol_version: "4.0",
-      nonce: "0x" + Math.random().toString(16).substring(2, 10),
-      action,
-      responses: [
-        {
-          identifier: "proof_of_human",
-          nullifier: mockNullifier,
-          proof: ["0x1", "0x2", "0x3", "0x4", "0x5"],
-          issuer_schema_id: 1,
-          expires_at_min: Math.floor(Date.now() / 1000) + 3600,
-        },
-      ],
-    };
-
-    try {
-      const res = await fetch(`${apiUrl}/api/claims/verify-and-claim`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event_id: event.id,
-          wallet_address: walletAddress,
-          proof_payload: proofPayload,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (res.status === 201 && data.success) {
-        setClaimData({
-          ticketNumber: data.claim.ticketNumber || `#TKT-${data.claim.id.slice(-4).toUpperCase()}`,
-          nullifierHash: data.claim.nullifierHash,
-          arkivEntityId: data.claim.arkivEntityId || `arkiv_alloc_${event.id}_001`,
-          arkivBlockNumber: data.claim.arkivBlockNumber || 1842095,
-          arkivTxHash: data.claim.arkivTxHash || "0x9f1a2b...c3d4",
-        });
-        setClaimStatus("success");
-      } else if (res.status === 409 || data.error === "DUPLICATE_CLAIM") {
-        setClaimStatus("duplicate");
-      } else {
-        const fallbackTicket = `#TKT-${Math.floor(1000 + Math.random() * 9000)}`;
-        setClaimData({
-          ticketNumber: fallbackTicket,
-          nullifierHash: `${mockNullifier.slice(0, 10)}...${mockNullifier.slice(-6)}`,
-          arkivEntityId: `arkiv_alloc_${event.id}_${fallbackTicket.replace("#", "")}`,
-          arkivBlockNumber: 1842095,
-          arkivTxHash: "0x" + Math.random().toString(16).substring(2, 18),
-        });
-        setClaimStatus("success");
-      }
-    } catch {
-      const fallbackTicket = `#TKT-${Math.floor(1000 + Math.random() * 9000)}`;
-      setClaimData({
-        ticketNumber: fallbackTicket,
-        nullifierHash: `${mockNullifier.slice(0, 10)}...${mockNullifier.slice(-6)}`,
-        arkivEntityId: `arkiv_alloc_${event.id}_${fallbackTicket.replace("#", "")}`,
-        arkivBlockNumber: 1842095,
-        arkivTxHash: "0x" + Math.random().toString(16).substring(2, 18),
-      });
-      setClaimStatus("success");
-    }
-  };
-
   const percentClaimed = Math.round((event.claimedTickets / event.totalTickets) * 100);
 
   return (
@@ -427,15 +351,6 @@ export function EventModal({
                       >
                         <ShieldCheck className="h-4 w-4" />
                         <span>Verify with World ID</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleSimulateClaim}
-                        title="Simulate mock proof for local automated testing without phone"
-                        className="text-[11px] text-slate-400 hover:text-slate-200 underline px-2 py-1"
-                      >
-                        (Dev Mock)
                       </button>
                     </div>
                   </div>

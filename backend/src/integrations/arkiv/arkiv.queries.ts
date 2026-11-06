@@ -14,6 +14,15 @@ import type {
   ArkivPublicAllocation,
 } from "./arkiv.types.js";
 
+function withTimeout<T = any>(promise: Promise<T>, ms: number = 2000): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Arkiv query timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 /**
  * Queries event listing entities from Arkiv DB-Chain using type-safe filter predicates.
  */
@@ -66,7 +75,7 @@ export async function queryEventsFromArkiv(
     queryBuilder = queryBuilder.offset(filter.offset);
   }
 
-  const result = await queryBuilder.fetch();
+  const result = await withTimeout(queryBuilder.fetch());
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return result.entities.map((row: any) => ({
@@ -130,7 +139,7 @@ export async function queryTicketsFromArkiv(
     queryBuilder = queryBuilder.limit(filter.limit);
   }
 
-  const result = await queryBuilder.fetch();
+  const result = await withTimeout(queryBuilder.fetch());
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return result.entities.map((row: any) => ({
@@ -184,7 +193,7 @@ export async function queryAllocationsFromArkiv(params: {
     queryBuilder = queryBuilder.where(eq("ticketId", params.ticketId));
   }
 
-  const result = await queryBuilder.fetch();
+  const result = await withTimeout(queryBuilder.fetch());
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return result.entities.map((row: any) => ({
