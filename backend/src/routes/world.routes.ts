@@ -21,12 +21,18 @@ worldRouter.post("/rp-context", async (req, res) => {
       });
     }
 
-    // Validate that action corresponds to a registered FairDrop event
+    // Validate that action corresponds to a registered FairDrop event or ticket claim action
     const repository = getClaimRepository();
     const events = await repository.getEvents();
-    const isValidAction = events.some(
-      (e) => e.actionId === action || `${e.id}-ticket-claim` === action || action === "test-action"
-    );
+    const isValidAction =
+      events.some(
+        (e) =>
+          e.actionId === action ||
+          `${e.id}-ticket-claim` === action ||
+          action.startsWith(e.id)
+      ) ||
+      /^[a-zA-Z0-9_-]+-ticket-claim$/.test(action) ||
+      action === "test-action";
 
     if (!isValidAction) {
       return res.status(400).json({

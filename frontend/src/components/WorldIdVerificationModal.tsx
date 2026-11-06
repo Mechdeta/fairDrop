@@ -15,7 +15,7 @@ import type { FairDropEvent } from "../data/mockData";
 
 // Dynamically import IDKitRequestWidget to guarantee clean client-only execution in Next.js
 const IDKitRequestWidget = dynamic(
-  () => import("@worldcoin/idkit").then((mod) => mod.IDKitRequestWidget),
+  () => import("@worldcoin/idkit").then((mod) => ({ default: mod.IDKitRequestWidget })),
   { ssr: false }
 );
 
