@@ -6,14 +6,45 @@
 
 We are deliberately building in phases. **Phase 1 is World ID verification and event-scoped duplicate-claim prevention.** Arkiv and Arc are reserved for later phases; they are not part of the initial implementation.
 
+The homepage and API health endpoint are starter scaffolding only. World ID verification, database persistence, ticket allocation, Arkiv, and Arc are not implemented yet.
+
+## Tech stack
+
+- Frontend: Next.js, React, TypeScript, Tailwind CSS
+- Backend: Node.js, Express, TypeScript
+- Planned operational database: PostgreSQL
+- Identity integration in the active phase: World ID
+
+## Run locally
+
+Requirements: Node.js 20.9 or newer.
+
+```bash
+npm install
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env.local
+npm run dev
+```
+
+- Frontend: http://localhost:3000
+- API: http://localhost:4000
+- API health check: http://localhost:4000/api/health
+
+Run checks:
+
+```bash
+npm run typecheck
+npm run build
+```
+
 ## Repository workflow
 
 - `main`: stable, demo-ready work.
 - `dev`: shared integration branch.
-- `feature/<short-name>`: individual tasks, merged into `dev via pull requests.
+- `feature/<short-name>`: individual tasks, opened as pull requests into `dev`.
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for team workflow and [docs/ROADMAP.md](./docs/ROADMAP.md) for milestones.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for team workflow, [docs/PRD.md](./docs/PRD.md) for the active implementation brief, and [docs/ROADMAP.md](./docs/ROADMAP.md) for milestones.
 
-## Product source
+## AI assistance
 
-The team's PRD is **FairDrop PRD v1.0**. Keep implementation decisions aligned with it, and update the repo's documentation when the team approves changes.
+Record substantial AI-assisted work, prompts, human review, and tests in [docs/AI_USAGE.md](./docs/AI_USAGE.md), in line with the hackathon's AI-use disclosure requirements.
