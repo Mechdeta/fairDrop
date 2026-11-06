@@ -11,5 +11,6 @@ coverage/
 .DS_Store
 *.log
 *.tsbuildinfo
-.vscode/
+.vscode/*
+!.vscode/mcp.json
 .idea/

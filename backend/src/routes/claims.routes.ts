@@ -73,11 +73,15 @@ claimsRouter.post("/verify-and-claim", async (req, res) => {
     }
 
     // 4. Atomic claim creation protected by unique constraint on (event_id, world_nullifier_hash)
+    // Normalize nullifier casing to prevent case-variance bypasses
+    const normalizedNullifier = verification.nullifier.toLowerCase();
+    const normalizedWallet = wallet_address.toLowerCase();
+
     try {
       const claim = await repository.createClaim(
         event_id,
-        wallet_address,
-        verification.nullifier
+        normalizedWallet,
+        normalizedNullifier
       );
 
       // 5. Phase 2: Record allocation on Arkiv decentralized queryable data layer

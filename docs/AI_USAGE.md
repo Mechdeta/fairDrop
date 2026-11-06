@@ -4,6 +4,19 @@ The hackathon permits AI assistance, but the team remains responsible for the wo
 
 Record meaningful AI-assisted work here. Add one entry per substantial task.
 
+## 2026-11-06 — World Docs MCP Integration & Canonical Validation
+
+- **Tool/model:** Gemini (Antigravity)
+- **Team member:** FairDrop engineering team
+- **Task:** Connect and configure the official World Documentation MCP server (`https://docs.world.org/mcp`) and Developer Portal MCP server.
+- **Prompt or instruction summary:** Integrate World Docs MCP endpoint, configure project MCP server declarations for Antigravity (`.agents/mcp_config.json`), VS Code (`.vscode/mcp.json`), and Cursor (`.cursor/mcp.json`), validate documentation against World ID 4.0 specifications, and normalize nullifier/wallet casing.
+- **Output used:**
+  - Configured MCP declarations: `.agents/mcp_config.json`, `.vscode/mcp.json`, and `.cursor/mcp.json`.
+  - Audited World ID 4.0 IDKit integration against canonical docs via MCP search and file querying tools.
+  - Hardened backend nullifier uniqueness handling with strict casing normalization in `claims.routes.ts`.
+- **Human review, changes, and tests:** Verified MCP JSON-RPC protocol compliance and tested all 20 test cases + monorepo typecheck.
+- **Related commit/PR:** Branch `dev`.
+
 ## 2026-11-06 — World ID 4.0 Integration & Duplicate-Claim Prevention
 
 - **Tool/model:** Gemini (Antigravity)
