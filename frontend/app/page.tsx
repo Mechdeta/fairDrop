@@ -11,12 +11,15 @@ import { TrustSection } from "../src/components/TrustSection";
 import { Footer } from "../src/components/Footer";
 import { EventModal } from "../src/components/EventModal";
 import { WalletModal } from "../src/components/WalletModal";
+import { ArkivExplorerModal } from "../src/components/ArkivExplorerModal";
 import { FairDropEvent } from "../src/data/mockData";
 
 export default function Home() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletBalance, setWalletBalance] = useState<string>("120.50");
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [isArkivModalOpen, setIsArkivModalOpen] = useState(false);
+  const [arkivSearchEntityId, setArkivSearchEntityId] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<FairDropEvent | null>(null);
 
   const handleConnectWallet = (address: string) => {
@@ -26,6 +29,11 @@ export default function Home() {
 
   const handleDisconnectWallet = () => {
     setWalletAddress(null);
+  };
+
+  const handleOpenArkivExplorer = (entityId?: string) => {
+    setArkivSearchEntityId(entityId ?? null);
+    setIsArkivModalOpen(true);
   };
 
   return (
@@ -40,7 +48,7 @@ export default function Home() {
 
       <main>
         {/* Hero Section with Product Preview Card */}
-        <HeroSection />
+        <HeroSection onOpenArkivExplorer={handleOpenArkivExplorer} />
 
         {/* Event Discovery Section */}
         <EventsSection
@@ -54,7 +62,12 @@ export default function Home() {
         <PartnersSection />
 
         {/* Secondary Ticket Marketplace Preview */}
-        <MarketplaceSection />
+        <MarketplaceSection
+          walletAddress={walletAddress}
+          onOpenWalletModal={() => setIsWalletModalOpen(true)}
+          onOpenArkivExplorer={handleOpenArkivExplorer}
+          onUpdateWalletBalance={(newBal) => setWalletBalance(newBal)}
+        />
 
         {/* Trust & Transparency Section */}
         <TrustSection />
@@ -70,12 +83,22 @@ export default function Home() {
         onClose={() => setSelectedEvent(null)}
         walletAddress={walletAddress}
         onOpenWalletModal={() => setIsWalletModalOpen(true)}
+        onOpenArkivExplorer={handleOpenArkivExplorer}
       />
 
       <WalletModal
         isOpen={isWalletModalOpen}
         onClose={() => setIsWalletModalOpen(false)}
         onConnectWallet={handleConnectWallet}
+      />
+
+      <ArkivExplorerModal
+        isOpen={isArkivModalOpen}
+        onClose={() => {
+          setIsArkivModalOpen(false);
+          setArkivSearchEntityId(null);
+        }}
+        initialEntityId={arkivSearchEntityId}
       />
     </div>
   );

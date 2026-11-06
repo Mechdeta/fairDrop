@@ -1,10 +1,14 @@
 "use client";
 
 import React from "react";
-import { ArrowDown, Sparkles, Shield, Users, CheckCircle, ExternalLink } from "lucide-react";
+import { ArrowDown, Sparkles, Shield, Users, CheckCircle, Database } from "lucide-react";
 import { HeroPreviewCard } from "./HeroPreviewCard";
 
-export function HeroSection() {
+interface HeroSectionProps {
+  onOpenArkivExplorer?: () => void;
+}
+
+export function HeroSection({ onOpenArkivExplorer }: HeroSectionProps) {
   return (
     <section className="relative overflow-hidden pt-12 pb-24 md:pt-16 md:pb-32">
       {/* Background radial gradients for subtle soft purple lighting */}
@@ -33,8 +37,8 @@ export function HeroSection() {
             <p className="mt-6 text-base text-slate-300 sm:text-lg sm:leading-relaxed max-w-2xl font-normal">
               FairDrop makes limited event ticket distribution more accountable through{" "}
               <span className="text-white font-medium">unique-human verification</span>,{" "}
-              <span className="text-white font-medium">transparent allocation</span> and{" "}
-              <span className="text-white font-medium">blockchain-powered ticket ownership</span>.
+              <span className="text-white font-medium">Arkiv decentralized records</span> and{" "}
+              <span className="text-white font-medium">Arc USDC programmable settlement</span>.
             </p>
 
             {/* Two CTAs */}
@@ -47,12 +51,16 @@ export function HeroSection() {
                 <ArrowDown className="h-4 w-4" />
               </a>
 
-              <a
-                href="#how-it-works"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-6 py-3.5 text-sm font-semibold text-slate-200 backdrop-blur-sm transition-all duration-200 hover:bg-white/[0.08] hover:border-white/25 hover:text-white"
-              >
-                <span>How FairDrop Works</span>
-              </a>
+              {onOpenArkivExplorer && (
+                <button
+                  type="button"
+                  onClick={onOpenArkivExplorer}
+                  className="inline-flex items-center gap-2 rounded-xl border border-indigo-400/30 bg-indigo-950/30 px-6 py-3.5 text-sm font-semibold text-indigo-200 backdrop-blur-sm transition-all duration-200 hover:bg-indigo-900/40 hover:border-indigo-400/50 hover:text-white"
+                >
+                  <Database className="h-4 w-4 text-indigo-400" />
+                  <span>Explore Arkiv DB-Chain</span>
+                </button>
+              )}
             </div>
 
             {/* Architecture Assurance Bar */}
@@ -62,30 +70,30 @@ export function HeroSection() {
                   <Shield className="h-3.5 w-3.5 text-violet-400" />
                   <span>World ID ZKP</span>
                 </div>
-                <span className="text-[11px] text-slate-400 mt-0.5">Sybil-proof human verification</span>
+                <span className="text-[11px] text-slate-400 mt-0.5">Sybil-proof personhood</span>
               </div>
 
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
-                  <Users className="h-3.5 w-3.5 text-purple-400" />
-                  <span>1 Human = 1 Pass</span>
+                  <Database className="h-3.5 w-3.5 text-indigo-400" />
+                  <span>Arkiv DB-Chain</span>
                 </div>
-                <span className="text-[11px] text-slate-400 mt-0.5">Event-scoped nullifier lock</span>
+                <span className="text-[11px] text-slate-400 mt-0.5">Public queryable allocation log</span>
               </div>
 
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-white">
                   <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
-                  <span>Anti-Scalping</span>
+                  <span>Arc USDC</span>
                 </div>
-                <span className="text-[11px] text-slate-400 mt-0.5">Contract-capped resale ceilings</span>
+                <span className="text-[11px] text-slate-400 mt-0.5">Capped smart-contract resale</span>
               </div>
             </div>
           </div>
 
           {/* Right Column: Hero Visual / FAIRDROP PROTECTION SYSTEM Preview Card */}
           <div className="flex justify-center lg:justify-end">
-            <HeroPreviewCard />
+            <HeroPreviewCard onOpenArkivExplorer={onOpenArkivExplorer} />
           </div>
         </div>
       </div>

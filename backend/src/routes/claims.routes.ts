@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getClaimRepository } from "../db/repository.js";
 import { DuplicateClaimError } from "../db/types.js";
+import { arkivService } from "../integrations/arkiv/arkiv.service.js";
 import { worldService } from "../integrations/world/world.service.js";
 import type { WorldIdVerifyRequestBody } from "../integrations/world/world.types.js";
 
@@ -10,7 +11,8 @@ const EVM_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
 /**
  * POST /api/claims/verify-and-claim
- * Verifies the submitted World ID proof on the backend and atomically issues a ticket claim.
+ * Verifies the submitted World ID proof on the backend, atomically issues a ticket claim,
+ * and commits an immutable, queryable record entity to Arkiv's decentralized data layer.
  * Enforces one claim per verified human per event using (event_id, world_nullifier_hash).
  */
 claimsRouter.post("/verify-and-claim", async (req, res) => {
@@ -78,16 +80,29 @@ claimsRouter.post("/verify-and-claim", async (req, res) => {
         verification.nullifier
       );
 
+      // 5. Phase 2: Record allocation on Arkiv decentralized queryable data layer
+      const ticketNumber = `#${event.name.replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase()}-${claim.id.replace(/[^a-zA-Z0-9]/g, "").slice(-4).toUpperCase()}`;
+      const arkivEntity = await arkivService.recordAllocation({
+        eventId: event_id,
+        ticketId: ticketNumber,
+        walletAddress: wallet_address,
+        worldNullifierHash: verification.nullifier,
+      });
+
       return res.status(201).json({
         success: true,
-        message: "Ticket successfully claimed!",
+        message: "Ticket successfully claimed and indexed on Arkiv DB-Chain!",
         claim: {
           id: claim.id,
+          ticketNumber,
           eventId: claim.eventId,
           walletAddress: claim.walletAddress,
           claimedAt: claim.claimedAt,
           // Mask nullifier hash for safe privacy display
           nullifierHash: `${claim.worldNullifierHash.slice(0, 10)}...${claim.worldNullifierHash.slice(-8)}`,
+          arkivEntityId: arkivEntity.id,
+          arkivBlockNumber: arkivEntity.blockNumber,
+          arkivTxHash: arkivEntity.txHash,
         },
       });
     } catch (claimErr: unknown) {
@@ -133,4 +148,3 @@ claimsRouter.get("/event/:eventId", async (req, res) => {
     return res.status(500).json({ error: "DATABASE_ERROR", message });
   }
 });
-

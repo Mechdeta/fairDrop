@@ -6,7 +6,7 @@ const DEFAULT_EVENTS: Event[] = [
     id: "eth-denver-2027",
     name: "ETHDenver 2027 Main Stage Pass",
     description: "Exclusive access to the largest Web3 #BUIDLathon and developer summit.",
-    date: "February 26 – March 1, 2027",
+    date: "February 26 - March 1, 2027",
     location: "National Western Complex, Denver, CO",
     actionId: "eth-denver-ticket-claim",
     totalTickets: 250,
@@ -16,11 +16,51 @@ const DEFAULT_EVENTS: Event[] = [
     id: "devcon-2027",
     name: "Devcon VIII Global Builder Pass",
     description: "The premier Ethereum gathering for developers, researchers, and creators.",
-    date: "October 14 – 17, 2027",
+    date: "October 14 - 17, 2027",
     location: "Convention Center, Tokyo, Japan",
     actionId: "devcon-ticket-claim",
     totalTickets: 150,
     claimedTickets: 0,
+  },
+  {
+    id: "mumbai-music-festival",
+    name: "Mumbai Music Festival 2026",
+    description: "India's premiere electronic & indie open-air festival at Jio World Garden, BKC.",
+    date: "Dec 18-19, 2026",
+    location: "Jio World Garden, BKC, Mumbai",
+    actionId: "mumbai-music-ticket-claim",
+    totalTickets: 2500,
+    claimedTickets: 1240,
+  },
+  {
+    id: "ethglobal-mumbai-2026",
+    name: "ETHGlobal Mumbai 2026",
+    description: "36 hours of relentless decentralized engineering and showcase.",
+    date: "Nov 14-16, 2026",
+    location: "Grand Hyatt Mumbai, Santacruz",
+    actionId: "ethglobal-mumbai-ticket-claim",
+    totalTickets: 1000,
+    claimedTickets: 850,
+  },
+  {
+    id: "mumbai-tech-summit",
+    name: "Mumbai Tech Summit 2027",
+    description: "Connecting frontier AI researchers, Web3 founders, and tech visionaries.",
+    date: "Jan 22, 2027",
+    location: "NESCO Center, Goregaon, Mumbai",
+    actionId: "mumbai-tech-ticket-claim",
+    totalTickets: 600,
+    claimedTickets: 490,
+  },
+  {
+    id: "college-fest-2026",
+    name: "Campus Fest 2026: Mood Indigo Tribute",
+    description: "The largest inter-college cultural & music celebration in Western India.",
+    date: "Feb 10-12, 2027",
+    location: "IIT Bombay Campus Grounds, Powai, Mumbai",
+    actionId: "college-fest-ticket-claim",
+    totalTickets: 5000,
+    claimedTickets: 3620,
   },
 ];
 
@@ -224,4 +264,3 @@ export function getClaimRepository(): IClaimRepository {
   }
   return repositoryInstance;
 }
-

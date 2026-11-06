@@ -11,9 +11,15 @@ import {
   AlertCircle,
   RefreshCw,
   Terminal,
+  Database,
+  Coins,
 } from "lucide-react";
 
-export function HeroPreviewCard() {
+interface HeroPreviewCardProps {
+  onOpenArkivExplorer?: () => void;
+}
+
+export function HeroPreviewCard({ onOpenArkivExplorer }: HeroPreviewCardProps) {
   const [simulationState, setSimulationState] = useState<"idle" | "verifying" | "success" | "duplicate">("idle");
   const [claimAttempts, setClaimAttempts] = useState(0);
 
@@ -53,7 +59,7 @@ export function HeroPreviewCard() {
                 FAIRDROP PROTECTION SYSTEM
               </p>
               <h3 className="text-base font-semibold text-white">
-                Human Uniqueness & Allocation Engine
+                World ID + Arkiv + Arc Unified Architecture
               </h3>
             </div>
           </div>
@@ -61,7 +67,7 @@ export function HeroPreviewCard() {
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
-              Protocol v0.1 • Phase 1
+              Pipeline Online
             </span>
           </div>
         </div>
@@ -78,7 +84,7 @@ export function HeroPreviewCard() {
                 <h4 className="text-sm font-semibold text-white group-hover:text-violet-200">
                   Verify the Person
                 </h4>
-                <span className="text-[10px] uppercase font-mono text-slate-400 bg-white/5 px-2 py-0.5 rounded">
+                <span className="text-[10px] uppercase font-mono text-violet-300 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded">
                   World ID ZKP
                 </span>
               </div>
@@ -98,12 +104,12 @@ export function HeroPreviewCard() {
                 <h4 className="text-sm font-semibold text-white group-hover:text-purple-200">
                   Protect Each Event
                 </h4>
-                <span className="text-[10px] uppercase font-mono text-slate-400 bg-white/5 px-2 py-0.5 rounded">
-                  Nullifier Lock
+                <span className="text-[10px] uppercase font-mono text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded">
+                  Arkiv DB-Chain
                 </span>
               </div>
               <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                One eligible claim per person, per event. The FairDrop backend enforces strict uniqueness with atomic constraints.
+                One eligible claim per person, per event. Automatically committed to Arkiv for decentralized, tamper-evident audit logs.
               </p>
             </div>
           </div>
@@ -118,12 +124,12 @@ export function HeroPreviewCard() {
                 <h4 className="text-sm font-semibold text-white group-hover:text-indigo-200">
                   Fair Ticket Allocation
                 </h4>
-                <span className="text-[10px] uppercase font-mono text-slate-400 bg-white/5 px-2 py-0.5 rounded">
-                  Equal Odds
+                <span className="text-[10px] uppercase font-mono text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
+                  Arc USDC Escrow
                 </span>
               </div>
               <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                Eligible participants enter the event allocation pool with zero bot dilution or scalper cartel interference.
+                Eligible participants enter the event allocation pool with native USDC payment settlement and capped secondary resale.
               </p>
             </div>
           </div>
@@ -161,21 +167,30 @@ export function HeroPreviewCard() {
             {simulationState === "verifying" && (
               <div className="flex items-center gap-2 text-violet-300">
                 <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                <span>Hashing nullifier & verifying World ID proof on backend...</span>
+                <span>Verifying World ID ZKP & indexing on Arkiv DB-Chain...</span>
               </div>
             )}
 
             {simulationState === "success" && (
-              <div className="space-y-1 text-emerald-400">
+              <div className="space-y-1.5 text-emerald-400">
                 <div className="flex items-center gap-1.5 font-bold">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span>200 OK — Unique Human Verified</span>
+                  <span>200 OK — Unique Human Verified & Claim Issued</span>
                 </div>
                 <div className="text-[10px] text-slate-400 truncate">
-                  Hash: 0x9f4b82d90a781...7c01 • Event: MMF-2026
+                  World Nullifier: 0x9f4b82d9...7c01 • Event: MMF-2026
                 </div>
-                <div className="text-[10px] text-emerald-300/80">
-                  Claim registered atomically. 1 human = 1 claim.
+                <div className="text-[10px] text-indigo-300 flex items-center justify-between">
+                  <span>Arkiv Entity: arkiv_alloc_mmf_91a4</span>
+                  {onOpenArkivExplorer && (
+                    <button
+                      type="button"
+                      onClick={onOpenArkivExplorer}
+                      className="underline hover:text-white"
+                    >
+                      View on Arkiv DB-Chain
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -184,7 +199,7 @@ export function HeroPreviewCard() {
               <div className="space-y-1 text-rose-400">
                 <div className="flex items-center gap-1.5 font-bold">
                   <AlertCircle className="h-3.5 w-3.5" />
-                  <span>409 Conflict — Duplicate Claim Rejected</span>
+                  <span>409 Conflict — Duplicate Claim Blocked</span>
                 </div>
                 <div className="text-[10px] text-slate-400">
                   Atomic DB constraint triggered: Nullifier already claimed for this event.
@@ -209,26 +224,26 @@ export function HeroPreviewCard() {
         {/* Integration Status Footer */}
         <div className="mt-6 border-t border-white/[0.08] pt-4">
           <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-            <span>Milestone Progress (Phase 1)</span>
-            <span className="font-mono text-violet-300">In Development</span>
+            <span>Protocol Architecture Status</span>
+            <span className="font-mono text-emerald-300 font-semibold">Active & Integrated</span>
           </div>
 
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-            <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-violet-500 to-purple-400" />
+            <div className="h-full w-full rounded-full bg-gradient-to-r from-violet-500 via-indigo-500 to-emerald-400" />
           </div>
 
           <div className="mt-3 grid grid-cols-3 gap-2 text-center font-mono text-[10px]">
-            <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-1.5">
+            <div className="rounded-lg bg-emerald-950/30 border border-emerald-500/20 p-1.5">
               <span className="text-slate-400 block">World ID</span>
-              <span className="text-amber-300 font-semibold">Demo Flow</span>
+              <span className="text-emerald-300 font-semibold">Proof Ready</span>
             </div>
-            <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-1.5">
+            <div className="rounded-lg bg-indigo-950/30 border border-indigo-500/20 p-1.5">
               <span className="text-slate-400 block">Arkiv</span>
-              <span className="text-slate-500 font-semibold">Phase 2 Planned</span>
+              <span className="text-indigo-300 font-semibold">DB-Chain Ready</span>
             </div>
-            <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-1.5">
+            <div className="rounded-lg bg-violet-950/30 border border-violet-500/20 p-1.5">
               <span className="text-slate-400 block">Arc</span>
-              <span className="text-slate-500 font-semibold">Phase 3 Planned</span>
+              <span className="text-violet-300 font-semibold">USDC Ready</span>
             </div>
           </div>
         </div>

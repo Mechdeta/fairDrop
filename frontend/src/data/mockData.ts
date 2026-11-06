@@ -57,8 +57,8 @@ export const DEMO_EVENTS: FairDropEvent[] = [
     tagline: "India's premiere electronic & indie open-air festival",
     location: "Mumbai, India",
     venue: "Jio World Garden, BKC, Bandra East",
-    date: "Dec 18–19, 2026",
-    time: "4:00 PM – 11:30 PM IST",
+    date: "Dec 18-19, 2026",
+    time: "4:00 PM - 11:30 PM IST",
     priceUsdc: 45,
     totalTickets: 2500,
     claimedTickets: 1240,
@@ -77,8 +77,8 @@ export const DEMO_EVENTS: FairDropEvent[] = [
     rules: [
       "Strict limit: 1 ticket allocation per verified World ID human",
       "Must hold verified World ID proof at time of claim",
-      "Non-transferable except through FairDrop controlled resale with max +10% price cap",
-      "Government photo ID must match registered World ID profile at gate check-in",
+      "Automatically recorded to Arkiv DB-Chain for decentralized auditability",
+      "Non-transferable except through Arc controlled resale with max +10% price cap",
     ],
   },
   {
@@ -89,7 +89,7 @@ export const DEMO_EVENTS: FairDropEvent[] = [
     tagline: "36 hours of relentless decentralized engineering and showcase",
     location: "Mumbai, India",
     venue: "Grand Hyatt Mumbai, Off Western Express Hwy, Santacruz",
-    date: "Nov 14–16, 2026",
+    date: "Nov 14-16, 2026",
     time: "Starts Friday 9:00 AM IST",
     priceUsdc: 0,
     totalTickets: 1000,
@@ -109,8 +109,8 @@ export const DEMO_EVENTS: FairDropEvent[] = [
     rules: [
       "100% Free registration sponsored by ETHGlobal Foundation",
       "Zero-knowledge World ID verification mandatory to prevent Sybil bot registrations",
-      "Admittance subject to staking pledge or hackathon acceptance code",
-      "Secondary resale strictly disabled; unreserved passes return to waitlist queue",
+      "Publicly auditable allocation records indexed on Arkiv decentralized DB-chain",
+      "Secondary resale locked at 0 USDC (Free builder transfer only)",
     ],
   },
   {
@@ -122,7 +122,7 @@ export const DEMO_EVENTS: FairDropEvent[] = [
     location: "Mumbai, India",
     venue: "NESCO Center, Hall 4, Goregaon East",
     date: "Jan 22, 2027",
-    time: "8:30 AM – 7:00 PM IST",
+    time: "8:30 AM - 7:00 PM IST",
     priceUsdc: 65,
     totalTickets: 600,
     claimedTickets: 490,
@@ -140,8 +140,8 @@ export const DEMO_EVENTS: FairDropEvent[] = [
     ],
     rules: [
       "One claim entry per verified human nullifier",
-      "Transparent on-chain allocation draw executed 72 hours before event",
-      "Unallocated claims automatically refunded in USDC via Arc protocol",
+      "Arkiv cryptographic records allow public audit of all entrant allocations",
+      "Arc smart contracts guarantee instant USDC settlement and organizer royalties",
       "Resale transfers capped strictly at original purchase price (0% scalping markup)",
     ],
   },
@@ -153,8 +153,8 @@ export const DEMO_EVENTS: FairDropEvent[] = [
     tagline: "The largest inter-college cultural & music celebration in Western India",
     location: "Mumbai, India",
     venue: "IIT Bombay Campus Grounds, Powai, Mumbai",
-    date: "Feb 10–12, 2027",
-    time: "11:00 AM – 10:00 PM IST",
+    date: "Feb 10-12, 2027",
+    time: "11:00 AM - 10:00 PM IST",
     priceUsdc: 15,
     totalTickets: 5000,
     claimedTickets: 3620,
@@ -173,15 +173,15 @@ export const DEMO_EVENTS: FairDropEvent[] = [
     rules: [
       "Subsidized student tier: 15 USDC flat price",
       "World ID proof required to stop bot cart-hoarding and counterfeit QR scalping",
-      "Valid Student ID must be presented in conjunction with the on-chain ticket badge",
-      "Resale locked at original student face value ($15 USDC)",
+      "Arkiv-indexed student claim ledger",
+      "Resale locked at original student face value ($15 USDC) on Arc",
     ],
   },
 ];
 
 export const RESALE_LISTINGS: ResaleListing[] = [
   {
-    id: "resale-001",
+    id: "arc_list_001",
     eventId: "mumbai-music-festival",
     eventName: "Mumbai Music Festival 2026",
     ticketNumber: "#MMF-0412",
@@ -192,11 +192,11 @@ export const RESALE_LISTINGS: ResaleListing[] = [
     priceCapMaxUsdc: 49.5,
     markupPercent: 0,
     status: "Available",
-    settlementNetwork: "Arc Protocol • USDC",
+    settlementNetwork: "Arc Protocol • Native USDC",
     verifiedHumanOnly: true,
   },
   {
-    id: "resale-002",
+    id: "arc_list_002",
     eventId: "mumbai-tech-summit",
     eventName: "Mumbai Tech Summit 2027",
     ticketNumber: "#MTS-0524",
@@ -207,11 +207,11 @@ export const RESALE_LISTINGS: ResaleListing[] = [
     priceCapMaxUsdc: 71.5,
     markupPercent: 7.6,
     status: "Available",
-    settlementNetwork: "Arc Protocol • USDC",
+    settlementNetwork: "Arc Protocol • Native USDC",
     verifiedHumanOnly: true,
   },
   {
-    id: "resale-003",
+    id: "arc_list_003",
     eventId: "ethglobal-mumbai-2026",
     eventName: "ETHGlobal Mumbai 2026",
     ticketNumber: "#EGM-0189",
@@ -222,11 +222,11 @@ export const RESALE_LISTINGS: ResaleListing[] = [
     priceCapMaxUsdc: 0,
     markupPercent: 0,
     status: "Pending Settlement",
-    settlementNetwork: "Zero-Knowledge Transfer",
+    settlementNetwork: "Arc Protocol • Zero-Knowledge Transfer",
     verifiedHumanOnly: true,
   },
   {
-    id: "resale-004",
+    id: "arc_list_004",
     eventId: "college-fest-2026",
     eventName: "Campus Fest 2026: Mood Indigo Tribute",
     ticketNumber: "#CF-2104",
@@ -237,7 +237,7 @@ export const RESALE_LISTINGS: ResaleListing[] = [
     priceCapMaxUsdc: 16.5,
     markupPercent: 0,
     status: "Sold",
-    settlementNetwork: "Arc Protocol • USDC",
+    settlementNetwork: "Arc Protocol • Native USDC",
     verifiedHumanOnly: true,
   },
 ];
@@ -250,15 +250,15 @@ export const PARTNERS_DATA: PartnerIntegration[] = [
     shortDesc: "World ID helps verify unique-human participation and reduce duplicate claims.",
     fullDesc:
       "Leveraging World ID's privacy-preserving Zero-Knowledge proofs (ZKPs), FairDrop verifies each attendee is an authentic, unique human without revealing their legal identity, phone number, or email. The cryptographic nullifier hash guarantees exactly one claim per person per event.",
-    status: "In Development",
-    statusColor: "amber",
-    phase: "Phase 1 (Active Milestone)",
+    status: "Connected",
+    statusColor: "emerald",
+    phase: "Phase 1: Active & Verified",
     docsUrl: "https://docs.world.org/world-id",
     features: [
       "Zero-Knowledge Proof of Personhood",
       "Orb & Device Verification Tiers",
       "Event-Scoped Nullifier Uniqueness",
-      "No Personal Data Stored or Leaked",
+      "Authoritative Backend Proof Verification",
     ],
   },
   {
@@ -268,9 +268,9 @@ export const PARTNERS_DATA: PartnerIntegration[] = [
     shortDesc: "Arkiv provides queryable records for events, allocations and ticket marketplace activity.",
     fullDesc:
       "Arkiv serves as the verifiable data tier for event metadata, verifiable ticket allocations, and audit trails. By maintaining cryptographic records off-chain with deterministic indexing, attendees and organizers can independently audit fair distribution without expensive L1 state bloat.",
-    status: "Planned",
+    status: "Connected",
     statusColor: "indigo",
-    phase: "Phase 2 (Next Milestone)",
+    phase: "Phase 2: DB-Chain Ready",
     docsUrl: "https://arkiv.network",
     features: [
       "Verifiable Event Registry",
@@ -286,9 +286,9 @@ export const PARTNERS_DATA: PartnerIntegration[] = [
     shortDesc: "Arc enables USDC payments and programmable ticket resale settlement.",
     fullDesc:
       "Arc coordinates the settlement layer using native USDC payment rails. Smart contracts enforce organizer-set price caps (e.g. maximum 10% above face value), automatic royalty routing to artists/venues, and atomic ticket transfers when a resale transaction occurs.",
-    status: "Planned",
+    status: "Connected",
     statusColor: "violet",
-    phase: "Phase 3 (Subsequent Milestone)",
+    phase: "Phase 3: USDC Settlement Ready",
     docsUrl: "https://arc.market",
     features: [
       "Native USDC Programmable Escrow",
@@ -319,14 +319,14 @@ export const HOW_IT_WORKS_STEPS = [
     title: "Get Your Fair Chance",
     description: "Participate in a transparent ticket allocation process where bots, multi-account farms, and automated scripts cannot enter.",
     tagline: "Verifiable Queue & Draw",
-    detail: "Every participant has an identical mathematical chance. No VIP scalper allotments, backdoors, or predatory speed-sniping.",
+    detail: "Every participant has an identical mathematical chance. Arkiv's decentralized records provide an immutable, public audit log of all entries.",
   },
   {
     step: "04",
     title: "Own Your Ticket",
     description: "Purchase using USDC and manage your ticket through blockchain-based ownership with smart-contract-controlled fair resale.",
     tagline: "Cryptographic Asset Ownership",
-    detail: "Your ticket lives in your wallet. If you can't make it, resell it legally on FairDrop's secondary market under strict anti-scalping price caps.",
+    detail: "Your ticket lives in your wallet. If you can't make it, resell it legally on FairDrop's secondary market via Arc under strict anti-scalping price caps.",
   },
 ];
 
@@ -344,13 +344,13 @@ export const TRUST_BENEFITS = [
   },
   {
     title: "Transparent Allocation",
-    short: "Auditable Randomness",
+    short: "Arkiv Decentralized DB-Chain",
     description:
-      "Traditional ticketing keeps allocations behind a black curtain. FairDrop makes the claim ledger verifiable, ensuring every attendee gets an honest, equal shot.",
+      "Traditional ticketing keeps allocations behind a black curtain. FairDrop records all ticket claims to Arkiv's decentralized data layer, making every claim publicly auditable.",
     bulletPoints: [
       "Open distribution mechanics",
       "No secret VIP or broker reserves",
-      "Publicly verifiable claim lists",
+      "Publicly verifiable Merkle proofs",
     ],
   },
   {
@@ -366,9 +366,9 @@ export const TRUST_BENEFITS = [
   },
   {
     title: "Controlled Secondary Resale",
-    short: "Anti-Scalper Smart Contracts",
+    short: "Arc Native USDC Settlement",
     description:
-      "Life happens and plans change. If you cannot attend, list your ticket on FairDrop's secondary market where smart contracts cap resale prices to eradicate exploitative scalping.",
+      "Life happens and plans change. If you cannot attend, list your ticket on FairDrop's secondary market where Arc smart contracts cap resale prices to eradicate exploitative scalping.",
     bulletPoints: [
       "Hardcoded price ceilings (e.g. max +10%)",
       "Verified human-to-human transfers only",
