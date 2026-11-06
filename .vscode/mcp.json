@@ -1,0 +1,16 @@
+{
+  "servers": {
+    "world-docs": {
+      "type": "http",
+      "url": "https://docs.world.org/mcp"
+    },
+    "world-developer-portal": {
+      "type": "http",
+      "url": "https://developer.world.org/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${env:WORLD_DEV_PORTAL_API_KEY}"
+      }
+    }
+  }
+}
+
