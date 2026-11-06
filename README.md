@@ -106,6 +106,17 @@ For in-depth architectural details, review the dedicated reports under `/arkiv/`
 
 ## 🚀 Quickstart & Demo Reproduction
 
+### GitHub Pages Deployment
+
+The frontend can be deployed as a static site from the `main` branch using the
+included GitHub Actions workflow. Enable **Settings → Pages → GitHub Actions**,
+then push to `main`. The site will be available at:
+`https://mechdeta.github.io/fairDrop/`.
+
+GitHub Pages does not run the Express backend. Set the repository variable
+`NEXT_PUBLIC_API_URL` to a separately hosted backend URL if live API actions are
+required; without it, the frontend displays its bundled demo event snapshot.
+
 ### 1. Clone Repository
 ```bash
 git clone https://github.com/Mechdeta/fairDrop.git
