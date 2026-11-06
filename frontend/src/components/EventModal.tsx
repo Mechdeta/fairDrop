@@ -17,8 +17,8 @@ import {
   Database,
   Coins,
 } from "lucide-react";
-import { IDKitRequestWidget, proofOfHuman, type IDKitResult, type RpContext } from "@worldcoin/idkit";
 import { FairDropEvent } from "../data/mockData";
+import { WorldIdVerificationModal, type ClaimSuccessData } from "./WorldIdVerificationModal";
 
 interface EventModalProps {
   event: FairDropEvent | null;
@@ -27,14 +27,6 @@ interface EventModalProps {
   walletAddress: string | null;
   onOpenWalletModal: () => void;
   onOpenArkivExplorer?: (entityId?: string) => void;
-}
-
-interface ClaimSuccessData {
-  ticketNumber: string;
-  nullifierHash: string;
-  arkivEntityId: string;
-  arkivBlockNumber: number;
-  arkivTxHash: string;
 }
 
 export function EventModal({
@@ -49,101 +41,32 @@ export function EventModal({
   const [claimData, setClaimData] = useState<ClaimSuccessData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Live World ID 4.0 IDKit state
-  const [isIdKitOpen, setIsIdKitOpen] = useState(false);
-  const [rpContext, setRpContext] = useState<RpContext | null>(null);
-  const [isLoadingRpContext, setIsLoadingRpContext] = useState(false);
+  // Live World ID 4.0 Verification Modal state
+  const [isWorldIdModalOpen, setIsWorldIdModalOpen] = useState(false);
 
   if (!isOpen || !event) return null;
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-  const appId = (process.env.NEXT_PUBLIC_WORLD_APP_ID || "app_2ef2e19628d1c70a482521c44d9e76fc") as `app_${string}`;
-  const environment = (process.env.NEXT_PUBLIC_WORLD_ENVIRONMENT || "staging") as "staging" | "production" | "sandbox";
-  const action = event.id + "-ticket-claim";
+  const action = event.actionId || `${event.id}-ticket-claim`;
 
   /**
    * Start REAL World ID 4.0 Verification:
-   * 1. Request backend-signed Relying Party (RP) context and signature from /api/world/rp-context.
-   * 2. Open official World ID 4.0 IDKit widget (modal with World App QR code / Simulator).
+   * Opens the dedicated dark-themed verification modal which uses the official IDKit SDK.
    */
-  const handleStartRealWorldIdClaim = async () => {
+  const handleStartRealWorldIdClaim = () => {
     if (!walletAddress) {
       onOpenWalletModal();
       return;
     }
-
-    try {
-      setIsLoadingRpContext(true);
-      setErrorMessage(null);
-
-      const res = await fetch(`${apiUrl}/api/world/rp-context`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || `Failed to generate RP context (HTTP ${res.status})`);
-      }
-
-      const data = await res.json();
-      setRpContext({
-        rp_id: data.rp_id,
-        nonce: data.nonce,
-        created_at: data.created_at,
-        expires_at: data.expires_at,
-        signature: data.signature,
-      });
-
-      // Open the official IDKit modal
-      setIsIdKitOpen(true);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to obtain RP signature from backend.";
-      setErrorMessage(msg);
-      setClaimStatus("error");
-    } finally {
-      setIsLoadingRpContext(false);
-    }
+    setIsWorldIdModalOpen(true);
   };
 
   /**
-   * Authoritative server-side proof verification called automatically by IDKit when attendee approves
+   * Handler when proof verification succeeds on backend
    */
-  const handleVerifyProof = async (result: IDKitResult) => {
-    setClaimStatus("verifying");
-    setErrorMessage(null);
-
-    const res = await fetch(`${apiUrl}/api/claims/verify-and-claim`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        event_id: event.id,
-        wallet_address: walletAddress,
-        proof_payload: result,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (res.status === 201 && data.success) {
-      setClaimData({
-        ticketNumber: data.claim.ticketNumber || `#TKT-${data.claim.id.slice(-4).toUpperCase()}`,
-        nullifierHash: data.claim.nullifierHash,
-        arkivEntityId: data.claim.arkivEntityId || `arkiv_alloc_${event.id}_001`,
-        arkivBlockNumber: data.claim.arkivBlockNumber || 1842095,
-        arkivTxHash: data.claim.arkivTxHash || "0x9f1a2b...c3d4",
-      });
-      setClaimStatus("success");
-    } else if (res.status === 409 || data.error === "DUPLICATE_CLAIM") {
-      setClaimStatus("duplicate");
-      setErrorMessage(data.message || "You have already claimed a ticket for this event with this World ID.");
-      throw new Error(data.message || "Duplicate claim rejected");
-    } else {
-      setClaimStatus("error");
-      setErrorMessage(data.detail || data.message || "World ID proof verification failed.");
-      throw new Error(data.detail || data.message || "Verification failed");
-    }
+  const handleVerificationSuccess = (data: ClaimSuccessData) => {
+    setClaimData(data);
+    setClaimStatus("success");
   };
 
   /**
@@ -398,13 +321,10 @@ export function EventModal({
                       <button
                         type="button"
                         onClick={handleStartRealWorldIdClaim}
-                        disabled={isLoadingRpContext}
-                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-violet-600/30 hover:scale-[1.02] transition-all disabled:opacity-50"
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-violet-600/30 hover:scale-[1.02] transition-all"
                       >
                         <ShieldCheck className="h-4 w-4" />
-                        <span>
-                          {isLoadingRpContext ? "Signing RP Context..." : "Verify with World ID"}
-                        </span>
+                        <span>Verify with World ID</span>
                       </button>
 
                       <button
@@ -528,26 +448,16 @@ export function EventModal({
         </div>
       </div>
 
-      {/* Official World ID 4.0 IDKit Widget */}
-      {rpContext ? (
-        <IDKitRequestWidget
-          open={isIdKitOpen}
-          onOpenChange={setIsIdKitOpen}
-          app_id={appId}
-          action={action}
-          rp_context={rpContext}
-          preset={proofOfHuman()}
-          allow_legacy_proofs={true}
-          environment={environment}
-          handleVerify={handleVerifyProof}
-          onSuccess={() => setIsIdKitOpen(false)}
-          onError={(code, debug) => {
-            console.error("IDKit error:", code, debug);
-            setClaimStatus("error");
-            setErrorMessage(`IDKit error: ${code}`);
-          }}
-        />
-      ) : null}
+      {/* Official World ID 4.0 Verification Modal */}
+      <WorldIdVerificationModal
+        isOpen={isWorldIdModalOpen}
+        onClose={() => setIsWorldIdModalOpen(false)}
+        event={event}
+        walletAddress={walletAddress}
+        onOpenWalletModal={onOpenWalletModal}
+        onVerificationSuccess={handleVerificationSuccess}
+        onOpenArkivExplorer={onOpenArkivExplorer}
+      />
     </div>
   );
 }

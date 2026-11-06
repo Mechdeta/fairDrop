@@ -17,6 +17,7 @@ export interface FairDropEvent {
   description: string;
   lineup: string[];
   rules: string[];
+  actionId?: string;
 }
 
 export interface ResaleListing {
@@ -64,6 +65,7 @@ export const DEMO_EVENTS: FairDropEvent[] = [
     claimedTickets: 1240,
     status: "Registration Open",
     statusType: "open",
+    actionId: "mumbai-music-ticket-claim",
     imageUrl: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=1200&q=80",
     description:
       "A 2-day multi-genre celebration featuring 3 stages, world-class acoustic engineering, interactive light installations, and curated artisan food districts in the heart of Mumbai's BKC.",
@@ -96,6 +98,7 @@ export const DEMO_EVENTS: FairDropEvent[] = [
     claimedTickets: 850,
     status: "World ID Verified Only",
     statusType: "verified",
+    actionId: "ethglobal-mumbai-ticket-claim",
     imageUrl: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1200&q=80",
     description:
       "Gathering 1,000+ global blockchain engineers, cryptographers, and protocol designers to build decentralized applications, zero-knowledge primitives, and scalable infrastructure.",
@@ -128,6 +131,7 @@ export const DEMO_EVENTS: FairDropEvent[] = [
     claimedTickets: 490,
     status: "Allocation Draw Soon",
     statusType: "draw",
+    actionId: "mumbai-tech-ticket-claim",
     imageUrl: "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=1200&q=80",
     description:
       "The flagship convention uniting industry giants, venture capital firms, AI pioneers, and decentralized builders. Featuring over 40 keynote speeches and an exclusive startup pitch exhibition.",
@@ -160,6 +164,7 @@ export const DEMO_EVENTS: FairDropEvent[] = [
     claimedTickets: 3620,
     status: "Registration Open",
     statusType: "open",
+    actionId: "college-fest-ticket-claim",
     imageUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80",
     description:
       "Three exhilarating days of battle-of-the-bands, street theatre, EDM arena nights, choreo competitions, and creative hack showcases across the scenic lakeside campus of Powai.",

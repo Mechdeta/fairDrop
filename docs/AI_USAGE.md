@@ -4,6 +4,24 @@ The hackathon permits AI assistance, but the team remains responsible for the wo
 
 Record meaningful AI-assisted work here. Add one entry per substantial task.
 
+## 2026-11-06 — World ID Verification Fix: Real World App QR Scanning & Anti-Redirect
+
+- **Tool/model:** Gemini (Antigravity)
+- **Team member:** FairDrop engineering team
+- **Task:** Fix World ID verification flow to prevent redirection to Google Play Store / app store and provide authentic QR scanning & mobile handoff with official IDKit SDK.
+- **Prompt or instruction summary:** Inspect existing frontend and backend, isolate root cause of Google Play Store redirect, implement dedicated purple dark-themed modal (`WorldIdVerificationModal.tsx`), use official headless `useIDKitRequest` hook to generate genuine SDK connector URI and render scannable high-contrast QR code, add explicit user guidance to scan with in-app scanner inside World App, support direct mobile app handoff, implement environment toggle (Production for physical phones vs Staging for Simulator), enforce backend proof verification against World API v4 with event-scoped nullifier uniqueness on Arkiv DB-Chain.
+- **Output used:**
+  - Created `frontend/src/components/WorldIdVerificationModal.tsx` using official `@worldcoin/idkit` headless `useIDKitRequest` hook and high-contrast `qrcode` renderer.
+  - Updated `frontend/src/components/EventModal.tsx` to launch dedicated verification modal and synchronize event actions.
+  - Configured `frontend/src/data/mockData.ts` with explicit `actionId` matching backend event actions (`mumbai-music-ticket-claim`, `ethglobal-mumbai-ticket-claim`, etc.).
+  - Configured `frontend/.env.local` and `backend/.env` for `production` mode with live World Developer API verification support.
+  - Documented root cause analysis: `world.org/verify` 307 redirects to Play Store when accessed via standard mobile web browsers or default phone cameras instead of the internal World App QR scanner.
+- **Human review, changes, and tests:**
+  - Vitest test suite: 38/38 tests passing across `claims.test.ts` and `arkiv-arc.test.ts`.
+  - TypeScript typecheck across monorepo: 0 errors (`npm run typecheck`).
+  - Next.js & TypeScript production build: 0 errors (`npm run build`).
+- **Related commit/PR:** Branch `dev`.
+
 ## 2026-11-06 — World Docs MCP Integration & Canonical Validation
 
 - **Tool/model:** Gemini (Antigravity)
