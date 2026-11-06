@@ -40,3 +40,4 @@ export function getArkivConfig(): ArkivConfig {
     isTestnet: true,
   };
 }
+

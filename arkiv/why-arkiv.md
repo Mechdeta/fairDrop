@@ -58,3 +58,4 @@ While Arkiv is ideal for public data, storing **all** state on-chain is neither 
 ## 4. Summary
 
 Arkiv transforms FairDrop from a standard Web2 ticketing app with crypto payments into a **genuinely decentralized, composable event protocol**, while MongoDB handles high-speed transactional coordination and user privacy protection.
+

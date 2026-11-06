@@ -105,3 +105,4 @@ flowchart TD
 1. **Proof of Genuine Inventory**: Attendees see the actual on-chain inventory counter rather than an opaque "Few tickets left!" sales pressure tactic.
 2. **Auditable Web3 Receipts**: Claimants can verify their ticket allocation on the Arkiv explorer using their connected wallet address.
 3. **Decentralized Reliability**: Event discovery remains functional even during private database maintenance, as public data is served directly from the Rabdi DB-Chain.
+

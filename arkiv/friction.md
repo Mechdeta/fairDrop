@@ -125,3 +125,4 @@ FairDrop implemented an **Outbox Pattern** with local cached snapshots:
 4. Once the transaction confirms on Arkiv, the on-chain entity key and block number are anchored to the local record.
 
 This ensures FairDrop is resilient, production-ready, and never drops attendee registrations.
+

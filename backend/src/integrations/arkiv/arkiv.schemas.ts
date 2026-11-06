@@ -58,3 +58,4 @@ export const AllocationEntitySchema = defineSchema("fairdrop.allocation.v1", {
   expiresAt: str(),
   schemaVersion: str(),
 });
+

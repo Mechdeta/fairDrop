@@ -71,3 +71,4 @@ Third parties do not need FairDrop backend credentials; they simply connect to t
 
 - **Testnet Continuity**: The Rabdi testnet deployment will remain active, queryable, and maintained post-ETHGlobal Mumbai 2026.
 - **Roadmap to Arkiv Mainnet**: FairDrop is slated to deploy canonical schemas to Arkiv Mainnet upon public network release, serving as a flagship demonstration of bot-proof decentralized ticketing powered by World ID, Arc USDC settlement, and Arkiv DB-Chain.
+

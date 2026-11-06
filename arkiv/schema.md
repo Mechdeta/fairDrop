@@ -180,3 +180,4 @@ All fields marked **Indexed** are registered as queryable columns in the Arkiv s
 - Each schema definition includes an explicit `schemaVersion: "1.0.0"` in its configuration payload.
 - Namespaces are scoped with the semantic version suffix `fairdrop.<entity>.v1`.
 - Future schema migrations will introduce `.v2` namespaces, allowing backward-compatible parallel queries during protocol upgrades.
+
