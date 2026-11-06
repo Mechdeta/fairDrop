@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   X,
   ShieldCheck,
@@ -13,16 +13,13 @@ import {
   Smartphone,
   QrCode,
   Sparkles,
-  Layers,
-  ArrowRight,
   Database,
 } from "lucide-react";
 import {
-  useIDKitRequest,
+  IDKit,
   proofOfHuman,
   type IDKitResult,
   type RpContext,
-  IDKitErrorCodes,
 } from "@worldcoin/idkit";
 import QRCode from "qrcode";
 import type { FairDropEvent } from "../data/mockData";
@@ -56,91 +53,6 @@ type VerificationStatus =
   | "expired"
   | "cancelled";
 
-/**
- * Headless session runner that mounts useIDKitRequest with a validated rp_context
- */
-function HeadlessIDKitRunner({
-  appId,
-  action,
-  rpContext,
-  environment,
-  onConnectorUriChange,
-  onStatusChange,
-  onProofReceived,
-  onErrorOccurred,
-}: {
-  appId: `app_${string}`;
-  action: string;
-  rpContext: RpContext;
-  environment: "production" | "staging" | "sandbox";
-  onConnectorUriChange: (uri: string | null) => void;
-  onStatusChange: (status: "waiting_for_scan" | "awaiting_approval" | "verifying_proof") => void;
-  onProofReceived: (result: IDKitResult) => void;
-  onErrorOccurred: (err: string) => void;
-}) {
-  const flow = useIDKitRequest({
-    app_id: appId,
-    action,
-    rp_context: rpContext,
-    preset: proofOfHuman(),
-    allow_legacy_proofs: true,
-    environment,
-    polling: {
-      interval: 1500,
-      timeout: 300000,
-    },
-  });
-
-  const openedRef = useRef(false);
-  const handledResultRef = useRef<IDKitResult | null>(null);
-
-  // Trigger flow.open() once when runner mounts
-  useEffect(() => {
-    if (!openedRef.current) {
-      openedRef.current = true;
-      flow.open();
-    }
-    return () => {
-      flow.reset();
-    };
-  }, []);
-
-  // Update connector URI whenever SDK generates it
-  useEffect(() => {
-    if (flow.connectorURI) {
-      onConnectorUriChange(flow.connectorURI);
-    }
-  }, [flow.connectorURI, onConnectorUriChange]);
-
-  // Monitor flow lifecycle states
-  useEffect(() => {
-    if (flow.isSuccess && flow.result && flow.result !== handledResultRef.current) {
-      handledResultRef.current = flow.result;
-      onStatusChange("verifying_proof");
-      onProofReceived(flow.result);
-    } else if (flow.isAwaitingUserConfirmation) {
-      onStatusChange("awaiting_approval");
-    } else if (flow.isAwaitingUserConnection) {
-      onStatusChange("waiting_for_scan");
-    } else if (flow.isError) {
-      const code = flow.errorCode ?? "UNKNOWN_IDKIT_ERROR";
-      onErrorOccurred(`IDKit error: ${code}`);
-    }
-  }, [
-    flow.isSuccess,
-    flow.result,
-    flow.isAwaitingUserConfirmation,
-    flow.isAwaitingUserConnection,
-    flow.isError,
-    flow.errorCode,
-    onStatusChange,
-    onProofReceived,
-    onErrorOccurred,
-  ]);
-
-  return null;
-}
-
 export function WorldIdVerificationModal({
   isOpen,
   onClose,
@@ -155,7 +67,6 @@ export function WorldIdVerificationModal({
   const defaultEnv = (process.env.NEXT_PUBLIC_WORLD_ENVIRONMENT || "production") as "production" | "staging";
 
   const [environment, setEnvironment] = useState<"production" | "staging">(defaultEnv);
-  const [rpContext, setRpContext] = useState<RpContext | null>(null);
   const [connectorURI, setConnectorURI] = useState<string | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<VerificationStatus>("initializing");
@@ -165,6 +76,7 @@ export function WorldIdVerificationModal({
   const [copiedLink, setCopiedLink] = useState(false);
   const [mobileTab, setMobileTab] = useState<"app" | "qr">("app");
   const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
 
   // Compute exact action to guarantee 1-to-1 parity with backend
   const action = useMemo(() => {
@@ -200,80 +112,6 @@ export function WorldIdVerificationModal({
 
     return () => clearInterval(timer);
   }, [isOpen, status]);
-
-  // Fetch backend RP Context whenever modal opens or retry triggered
-  const initRpContext = useCallback(async () => {
-    if (!event) return;
-    setStatus("initializing");
-    setErrorMessage(null);
-    setConnectorURI(null);
-    setQrCodeDataUrl(null);
-    setRpContext(null);
-    setTimeLeft(300);
-
-    try {
-      const res = await fetch(`${apiUrl}/api/world/rp-context`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || `Failed to sign RP context from server (HTTP ${res.status})`);
-      }
-
-      const data = await res.json();
-      setRpContext({
-        rp_id: data.rp_id,
-        nonce: data.nonce,
-        created_at: data.created_at,
-        expires_at: data.expires_at,
-        signature: data.signature,
-      });
-      setStatus("waiting_for_scan");
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to obtain RP signature from backend.";
-      setErrorMessage(msg);
-      setStatus("failed");
-    }
-  }, [apiUrl, action, event]);
-
-  // Re-fetch on open
-  useEffect(() => {
-    if (isOpen && event && walletAddress) {
-      initRpContext();
-    }
-  }, [isOpen, event, walletAddress, initRpContext]);
-
-  // Render crisp QR Code whenever connectorURI is available
-  useEffect(() => {
-    if (!connectorURI) {
-      setQrCodeDataUrl(null);
-      return;
-    }
-
-    let isMounted = true;
-    QRCode.toDataURL(connectorURI, {
-      width: 320,
-      margin: 2,
-      errorCorrectionLevel: "M",
-      color: {
-        dark: "#0F172A",
-        light: "#FFFFFF",
-      },
-    })
-      .then((url) => {
-        if (isMounted) setQrCodeDataUrl(url);
-      })
-      .catch((err) => {
-        console.error("QR Code generation error:", err);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [connectorURI]);
 
   // Handle authoritative server-side proof verification
   const handleServerProofVerification = useCallback(
@@ -323,6 +161,126 @@ export function WorldIdVerificationModal({
     },
     [apiUrl, event, walletAddress, onVerificationSuccess]
   );
+
+  // Core IDKit Request Session Lifecycle
+  useEffect(() => {
+    if (!isOpen || !event) return;
+
+    let isCancelled = false;
+    const abortController = new AbortController();
+
+    async function runSession() {
+      setStatus("initializing");
+      setErrorMessage(null);
+      setConnectorURI(null);
+      setQrCodeDataUrl(null);
+      setTimeLeft(300);
+
+      try {
+        // Step 1: Obtain server-signed Relying Party (RP) context and signature
+        const res = await fetch(`${apiUrl}/api/world/rp-context`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+          signal: abortController.signal,
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || `Failed to sign RP context from server (HTTP ${res.status})`);
+        }
+
+        const rpData = (await res.json()) as RpContext;
+        if (isCancelled) return;
+
+        // Step 2: Initialize official IDKit Request via IDKit SDK
+        const builder = IDKit.request({
+          app_id: defaultAppId,
+          action,
+          rp_context: rpData,
+          environment,
+          allow_legacy_proofs: true,
+        });
+
+        const req = await builder.preset(proofOfHuman(), {
+          signal: abortController.signal,
+        });
+
+        if (isCancelled) return;
+
+        const uri = req.connectorURI;
+        if (!uri) {
+          throw new Error("IDKit SDK did not return a connector URI for this request.");
+        }
+
+        // Step 3: Immediately render crisp QR code from connector URI
+        const qrUrl = await QRCode.toDataURL(uri, {
+          width: 320,
+          margin: 2,
+          errorCorrectionLevel: "M",
+          color: {
+            dark: "#0F172A",
+            light: "#FFFFFF",
+          },
+        });
+
+        if (isCancelled) return;
+
+        setConnectorURI(uri);
+        setQrCodeDataUrl(qrUrl);
+        setStatus("waiting_for_scan");
+
+        // Step 4: Actively poll the official bridge for scan recognition and user confirmation
+        while (!isCancelled && !abortController.signal.aborted) {
+          try {
+            const pollRes = await req.pollOnce({ signal: abortController.signal });
+            if (isCancelled) break;
+
+            if (pollRes?.type === "awaiting_confirmation") {
+              setStatus("awaiting_approval");
+            } else if (pollRes?.type === "confirmed") {
+              setStatus("verifying_proof");
+              if (pollRes.result) {
+                await handleServerProofVerification(pollRes.result);
+              }
+              break;
+            } else if (pollRes?.type === "failed") {
+              setStatus("failed");
+              setErrorMessage(pollRes.error || "Verification was rejected or cancelled in World App.");
+              break;
+            }
+          } catch {
+            // Transient bridge polling network hiccups are silently retried
+            if (isCancelled || abortController.signal.aborted) break;
+          }
+
+          // Polling cadence: 1.5s
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
+      } catch (err: unknown) {
+        if (isCancelled || abortController.signal.aborted) return;
+        const msg = err instanceof Error ? err.message : "Failed to initiate World ID verification session.";
+        setErrorMessage(msg);
+        setStatus("failed");
+      }
+    }
+
+    runSession();
+
+    return () => {
+      isCancelled = true;
+      abortController.abort();
+    };
+  }, [
+    isOpen,
+    event,
+    action,
+    environment,
+    apiUrl,
+    defaultAppId,
+    reloadTrigger,
+    handleServerProofVerification,
+  ]);
 
   // Copy connector URI link
   const handleCopyLink = () => {
@@ -376,7 +334,7 @@ export function WorldIdVerificationModal({
                 type="button"
                 onClick={() => {
                   setEnvironment("production");
-                  initRpContext();
+                  setReloadTrigger((n) => n + 1);
                 }}
                 className={`px-2.5 py-1 rounded-full transition-all ${
                   environment === "production"
@@ -391,7 +349,7 @@ export function WorldIdVerificationModal({
                 type="button"
                 onClick={() => {
                   setEnvironment("staging");
-                  initRpContext();
+                  setReloadTrigger((n) => n + 1);
                 }}
                 className={`px-2.5 py-1 rounded-full transition-all ${
                   environment === "staging"
@@ -415,28 +373,10 @@ export function WorldIdVerificationModal({
           </div>
         </div>
 
-        {/* Headless IDKit Session Runner (Active when rpContext is loaded) */}
-        {rpContext && isOpen && (status === "waiting_for_scan" || status === "awaiting_approval" || status === "verifying_proof") && (
-          <HeadlessIDKitRunner
-            key={`${rpContext.nonce}-${environment}`}
-            appId={defaultAppId}
-            action={action}
-            rpContext={rpContext}
-            environment={environment}
-            onConnectorUriChange={(uri) => setConnectorURI(uri)}
-            onStatusChange={(newStatus) => setStatus(newStatus)}
-            onProofReceived={(result) => handleServerProofVerification(result)}
-            onErrorOccurred={(err) => {
-              setErrorMessage(err);
-              setStatus("failed");
-            }}
-          />
-        )}
-
         {/* Modal Main Body */}
         <div className="p-6 sm:p-7 space-y-5">
           {/* Connected Wallet Badge */}
-          {walletAddress && (
+          {walletAddress ? (
             <div className="flex items-center justify-between rounded-xl bg-white/[0.03] border border-white/5 px-3.5 py-2 text-xs">
               <span className="text-slate-400 flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -445,6 +385,17 @@ export function WorldIdVerificationModal({
               <span className="font-mono text-violet-300 font-semibold">
                 {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
               </span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between rounded-xl bg-amber-500/10 border border-amber-500/20 px-3.5 py-2 text-xs text-amber-200">
+              <span>Connect wallet to bind your ticket claim:</span>
+              <button
+                type="button"
+                onClick={onOpenWalletModal}
+                className="rounded-lg bg-amber-500 text-slate-950 font-bold px-3 py-1 hover:bg-amber-400 transition-colors"
+              >
+                Connect Wallet
+              </button>
             </div>
           )}
 
@@ -457,10 +408,10 @@ export function WorldIdVerificationModal({
               </div>
               <div>
                 <p className="text-sm font-semibold text-white">
-                  Initializing Verification Request...
+                  Generating World ID Verification Request...
                 </p>
                 <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                  Generating cryptographically signed Relying Party context on FairDrop backend.
+                  Signing RP context on FairDrop server and establishing bridge request with World ID.
                 </p>
               </div>
             </div>
@@ -646,7 +597,7 @@ export function WorldIdVerificationModal({
 
                     <button
                       type="button"
-                      onClick={initRpContext}
+                      onClick={() => setReloadTrigger((n) => n + 1)}
                       className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors bg-white/5 border border-white/5 rounded-lg px-2.5 py-1"
                     >
                       <RefreshCw className="h-3.5 w-3.5" />
@@ -770,7 +721,7 @@ export function WorldIdVerificationModal({
             <div className="rounded-2xl bg-rose-950/40 border border-rose-500/30 p-5 space-y-3 text-rose-300">
               <div className="flex items-center gap-2 font-bold text-sm">
                 <AlertCircle className="h-5 w-5 text-rose-400 shrink-0" />
-                <span>Verification Failed</span>
+                <span>Verification Request Error</span>
               </div>
               <p className="text-xs text-slate-300">
                 {errorMessage || "An error occurred during World ID verification."}
@@ -778,11 +729,11 @@ export function WorldIdVerificationModal({
               <div className="pt-2 flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={initRpContext}
+                  onClick={() => setReloadTrigger((n) => n + 1)}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 px-4 py-2 text-xs font-bold text-white transition-colors"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
-                  <span>Retry Verification</span>
+                  <span>Retry Generating QR</span>
                 </button>
                 <button
                   type="button"
@@ -806,7 +757,7 @@ export function WorldIdVerificationModal({
               <div className="pt-2">
                 <button
                   type="button"
-                  onClick={initRpContext}
+                  onClick={() => setReloadTrigger((n) => n + 1)}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 px-5 py-2 text-xs font-bold text-slate-950 transition-colors shadow-md"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
@@ -836,4 +787,3 @@ export function WorldIdVerificationModal({
     </div>
   );
 }
-
