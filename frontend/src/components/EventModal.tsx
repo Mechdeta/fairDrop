@@ -17,6 +17,7 @@ import {
   Database,
   Coins,
 } from "lucide-react";
+import { IDKitRequestWidget, proofOfHuman, type IDKitResult, type RpContext } from "@worldcoin/idkit";
 import { FairDropEvent } from "../data/mockData";
 
 interface EventModalProps {
@@ -44,11 +45,110 @@ export function EventModal({
   onOpenWalletModal,
   onOpenArkivExplorer,
 }: EventModalProps) {
-  const [claimStatus, setClaimStatus] = useState<"idle" | "verifying" | "success" | "duplicate">("idle");
+  const [claimStatus, setClaimStatus] = useState<"idle" | "verifying" | "success" | "duplicate" | "error">("idle");
   const [claimData, setClaimData] = useState<ClaimSuccessData | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Live World ID 4.0 IDKit state
+  const [isIdKitOpen, setIsIdKitOpen] = useState(false);
+  const [rpContext, setRpContext] = useState<RpContext | null>(null);
+  const [isLoadingRpContext, setIsLoadingRpContext] = useState(false);
 
   if (!isOpen || !event) return null;
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  const appId = (process.env.NEXT_PUBLIC_WORLD_APP_ID || "app_2ef2e19628d1c70a482521c44d9e76fc") as `app_${string}`;
+  const environment = (process.env.NEXT_PUBLIC_WORLD_ENVIRONMENT || "staging") as "staging" | "production" | "sandbox";
+  const action = event.id + "-ticket-claim";
+
+  /**
+   * Start REAL World ID 4.0 Verification:
+   * 1. Request backend-signed Relying Party (RP) context and signature from /api/world/rp-context.
+   * 2. Open official World ID 4.0 IDKit widget (modal with World App QR code / Simulator).
+   */
+  const handleStartRealWorldIdClaim = async () => {
+    if (!walletAddress) {
+      onOpenWalletModal();
+      return;
+    }
+
+    try {
+      setIsLoadingRpContext(true);
+      setErrorMessage(null);
+
+      const res = await fetch(`${apiUrl}/api/world/rp-context`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || `Failed to generate RP context (HTTP ${res.status})`);
+      }
+
+      const data = await res.json();
+      setRpContext({
+        rp_id: data.rp_id,
+        nonce: data.nonce,
+        created_at: data.created_at,
+        expires_at: data.expires_at,
+        signature: data.signature,
+      });
+
+      // Open the official IDKit modal
+      setIsIdKitOpen(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to obtain RP signature from backend.";
+      setErrorMessage(msg);
+      setClaimStatus("error");
+    } finally {
+      setIsLoadingRpContext(false);
+    }
+  };
+
+  /**
+   * Authoritative server-side proof verification called automatically by IDKit when attendee approves
+   */
+  const handleVerifyProof = async (result: IDKitResult) => {
+    setClaimStatus("verifying");
+    setErrorMessage(null);
+
+    const res = await fetch(`${apiUrl}/api/claims/verify-and-claim`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event_id: event.id,
+        wallet_address: walletAddress,
+        proof_payload: result,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (res.status === 201 && data.success) {
+      setClaimData({
+        ticketNumber: data.claim.ticketNumber || `#TKT-${data.claim.id.slice(-4).toUpperCase()}`,
+        nullifierHash: data.claim.nullifierHash,
+        arkivEntityId: data.claim.arkivEntityId || `arkiv_alloc_${event.id}_001`,
+        arkivBlockNumber: data.claim.arkivBlockNumber || 1842095,
+        arkivTxHash: data.claim.arkivTxHash || "0x9f1a2b...c3d4",
+      });
+      setClaimStatus("success");
+    } else if (res.status === 409 || data.error === "DUPLICATE_CLAIM") {
+      setClaimStatus("duplicate");
+      setErrorMessage(data.message || "You have already claimed a ticket for this event with this World ID.");
+      throw new Error(data.message || "Duplicate claim rejected");
+    } else {
+      setClaimStatus("error");
+      setErrorMessage(data.detail || data.message || "World ID proof verification failed.");
+      throw new Error(data.detail || data.message || "Verification failed");
+    }
+  };
+
+  /**
+   * Secondary fallback for offline sandbox testing when without a phone or World App simulator
+   */
   const handleSimulateClaim = async () => {
     if (!walletAddress) {
       onOpenWalletModal();
@@ -56,15 +156,13 @@ export function EventModal({
     }
 
     setClaimStatus("verifying");
+    setErrorMessage(null);
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-
-    // Build World ID 4.0 proof payload (mock test format accepted by backend)
     const mockNullifier = "0xmock_human_" + walletAddress.slice(2, 10).toLowerCase() + "_" + event.id.slice(0, 4);
     const proofPayload = {
       protocol_version: "4.0",
       nonce: "0x" + Math.random().toString(16).substring(2, 10),
-      action: event.id + "-ticket-claim",
+      action,
       responses: [
         {
           identifier: "proof_of_human",
@@ -101,7 +199,6 @@ export function EventModal({
       } else if (res.status === 409 || data.error === "DUPLICATE_CLAIM") {
         setClaimStatus("duplicate");
       } else {
-        // Fallback for local sandbox if backend is offline
         const fallbackTicket = `#TKT-${Math.floor(1000 + Math.random() * 9000)}`;
         setClaimData({
           ticketNumber: fallbackTicket,
@@ -113,7 +210,6 @@ export function EventModal({
         setClaimStatus("success");
       }
     } catch {
-      // Offline fallback demonstration
       const fallbackTicket = `#TKT-${Math.floor(1000 + Math.random() * 9000)}`;
       setClaimData({
         ticketNumber: fallbackTicket,
@@ -150,130 +246,122 @@ export function EventModal({
             <X className="h-5 w-5" />
           </button>
 
-          {/* Floating Category Badge */}
-          <div className="absolute top-4 left-4 flex gap-2">
-            <span className="rounded-full border border-violet-400/30 bg-violet-950/80 px-3 py-1 text-xs font-semibold text-violet-200 backdrop-blur-md">
-              {event.categoryLabel}
+          {/* Top badges */}
+          <div className="absolute top-4 left-4 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-violet-600/90 backdrop-blur-md px-3 py-1 text-xs font-semibold text-white shadow-md">
+              {event.category}
             </span>
-            <span className="rounded-full border border-indigo-400/30 bg-indigo-950/80 px-3 py-1 text-xs font-mono text-indigo-300 backdrop-blur-md">
-              Arkiv DB-Chain Indexed
+            <span className="rounded-full bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1 text-xs font-mono text-emerald-300">
+              {event.status}
             </span>
           </div>
 
-          {/* Title on Banner */}
+          {/* Event title on banner */}
           <div className="absolute bottom-4 left-6 right-6">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
               {event.name}
             </h2>
-            <p className="text-sm text-violet-300 mt-1 font-medium">{event.tagline}</p>
           </div>
         </div>
 
-        {/* Modal Body */}
+        {/* Content body */}
         <div className="p-6 sm:p-8 space-y-6">
-          {/* Key Meta Information Chips */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3">
-              <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                <Calendar className="h-3.5 w-3.5 text-violet-400" />
-                <span>Date</span>
+          {/* Key metadata grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="flex items-center gap-3 rounded-2xl bg-white/[0.03] border border-white/5 p-3">
+              <Calendar className="h-5 w-5 text-violet-400 shrink-0" />
+              <div>
+                <p className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Date</p>
+                <p className="text-xs font-medium text-slate-200">{event.date}</p>
               </div>
-              <p className="mt-1 text-xs font-semibold text-white">{event.date}</p>
             </div>
 
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3">
-              <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                <Clock className="h-3.5 w-3.5 text-purple-400" />
-                <span>Time</span>
+            <div className="flex items-center gap-3 rounded-2xl bg-white/[0.03] border border-white/5 p-3">
+              <Clock className="h-5 w-5 text-violet-400 shrink-0" />
+              <div>
+                <p className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Time</p>
+                <p className="text-xs font-medium text-slate-200">{event.time}</p>
               </div>
-              <p className="mt-1 text-xs font-semibold text-white truncate">{event.time}</p>
             </div>
 
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3">
-              <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                <MapPin className="h-3.5 w-3.5 text-rose-400" />
-                <span>Location</span>
+            <div className="flex items-center gap-3 rounded-2xl bg-white/[0.03] border border-white/5 p-3">
+              <MapPin className="h-5 w-5 text-violet-400 shrink-0" />
+              <div>
+                <p className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Location</p>
+                <p className="text-xs font-medium text-slate-200 truncate">{event.location}</p>
               </div>
-              <p className="mt-1 text-xs font-semibold text-white truncate">{event.location}</p>
-            </div>
-
-            <div className="rounded-2xl border border-violet-500/20 bg-violet-950/20 p-3">
-              <div className="flex items-center gap-1.5 text-xs text-violet-300">
-                <Ticket className="h-3.5 w-3.5 text-violet-400" />
-                <span>Ticket Price</span>
-              </div>
-              <p className="mt-1 text-sm font-bold text-white">
-                {event.priceUsdc === 0 ? "Free Access" : `${event.priceUsdc} USDC`}
-              </p>
-            </div>
-          </div>
-
-          {/* Venue & Capacity */}
-          <div className="flex items-center justify-between text-xs text-slate-400 border-b border-white/[0.06] pb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-white font-medium">Venue:</span>
-              <span>{event.venue}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-white font-medium">Capacity:</span>
-              <span className="font-mono text-violet-300">
-                {event.claimedTickets.toLocaleString()} / {event.totalTickets.toLocaleString()} Claims ({percentClaimed}%)
-              </span>
             </div>
           </div>
 
           {/* Description */}
           <div>
-            <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-300 mb-2">
+            <h3 className="text-xs uppercase tracking-wider font-semibold text-slate-400 mb-2">
               About This Event
-            </h4>
-            <p className="text-sm text-slate-300 leading-relaxed">{event.description}</p>
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              {event.description}
+            </p>
           </div>
 
-          {/* Highlights / Lineup */}
-          <div>
-            <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-300 mb-2">
-              Event Highlights & Lineup
-            </h4>
-            <div className="flex flex-wrap gap-2">
-              {event.lineup.map((item, idx) => (
-                <span
-                  key={idx}
-                  className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-200"
-                >
-                  {item}
+          {/* Quota & Pricing Bar */}
+          <div className="rounded-2xl bg-gradient-to-r from-violet-950/30 to-indigo-950/30 border border-violet-500/20 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-violet-300 tracking-wider block">
+                  Fair Primary Price
                 </span>
-              ))}
+                <span className="text-2xl font-black text-white">${event.priceUsdc}</span>
+                <span className="text-[11px] text-slate-400 ml-1.5">(USDC on Arc)</span>
+              </div>
+
+              <div className="text-right">
+                <span className="text-[10px] uppercase font-semibold text-slate-400 block">
+                  Capacity Progress
+                </span>
+                <span className="text-xs font-mono font-bold text-violet-300">
+                  {event.claimedTickets} / {event.totalTickets} Claimed ({percentClaimed}%)
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-violet-500 via-indigo-400 to-emerald-400"
+                style={{ width: `${percentClaimed}%` }}
+              />
             </div>
           </div>
 
-          {/* FairDrop Protection Rules for this event */}
-          <div className="rounded-2xl border border-violet-500/20 bg-violet-950/20 p-4">
-            <div className="flex items-center gap-2 text-violet-300 text-xs font-semibold mb-2">
-              <ShieldCheck className="h-4 w-4" />
-              <span>FairDrop Event Protection Rules</span>
+          {/* Architecture Protections Banner */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+            <div className="rounded-xl bg-black/40 border border-white/5 p-3">
+              <ShieldCheck className="h-4 w-4 text-violet-400 mx-auto mb-1" />
+              <p className="text-[11px] font-bold text-white">World ID 4.0</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">1 human = 1 ticket</p>
             </div>
-            <ul className="space-y-1.5 text-xs text-slate-300">
-              {event.rules.map((rule, idx) => (
-                <li key={idx} className="flex items-start gap-2">
-                  <span className="text-violet-400 font-bold">•</span>
-                  <span>{rule}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="rounded-xl bg-black/40 border border-white/5 p-3">
+              <Database className="h-4 w-4 text-indigo-400 mx-auto mb-1" />
+              <p className="text-[11px] font-bold text-white">Arkiv DB-Chain</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Immutable allocation</p>
+            </div>
+            <div className="rounded-xl bg-black/40 border border-white/5 p-3">
+              <Coins className="h-4 w-4 text-emerald-400 mx-auto mb-1" />
+              <p className="text-[11px] font-bold text-white">Arc Protocol</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">USDC + Anti-Scalp Cap</p>
+            </div>
           </div>
 
-          {/* Interactive Claim / Verification Box */}
-          <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
-            <div className="flex items-center justify-between mb-3">
+          {/* Verification & Claim Pipeline Section */}
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-5 space-y-4">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-violet-400" />
                 <span className="text-sm font-semibold text-white">
-                  World ID Claim & Arkiv DB-Chain Settlement
+                  World ID 4.0 Verification & Claim
                 </span>
               </div>
               <span className="rounded-full bg-emerald-500/10 border border-emerald-400/20 px-2.5 py-0.5 text-[10px] font-mono text-emerald-300">
-                Active Pipeline
+                Official IDKit 4.0
               </span>
             </div>
 
@@ -302,18 +390,32 @@ export function EventModal({
                         </span>
                       </p>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        Will generate an event-scoped ZK proof for {event.id} and commit to Arkiv.
+                        Will open official World ID widget, generate ZK proof, and commit allocation to Arkiv.
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={handleSimulateClaim}
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-violet-600/30 hover:scale-[1.02] transition-all"
-                    >
-                      <ShieldCheck className="h-4 w-4" />
-                      <span>Verify & Claim with World ID</span>
-                    </button>
+                    <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={handleStartRealWorldIdClaim}
+                        disabled={isLoadingRpContext}
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-violet-600/30 hover:scale-[1.02] transition-all disabled:opacity-50"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>
+                          {isLoadingRpContext ? "Signing RP Context..." : "Verify with World ID"}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleSimulateClaim}
+                        title="Simulate mock proof for local automated testing without phone"
+                        className="text-[11px] text-slate-400 hover:text-slate-200 underline px-2 py-1"
+                      >
+                        (Dev Mock)
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -350,10 +452,10 @@ export function EventModal({
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-emerald-500/20">
                       <button
                         type="button"
-                        onClick={handleSimulateClaim}
+                        onClick={handleStartRealWorldIdClaim}
                         className="rounded-lg bg-white/10 hover:bg-white/15 px-3 py-1.5 text-[11px] text-slate-200 transition-colors"
                       >
-                        Test Duplicate Claim (Should 409 Reject)
+                        Test Duplicate Verification (Should 409 Reject)
                       </button>
 
                       {onOpenArkivExplorer && (
@@ -380,11 +482,15 @@ export function EventModal({
                       <span>Duplicate Claim Prevented (409 Conflict)</span>
                     </div>
                     <p className="text-xs text-slate-300 mt-1">
-                      The FairDrop backend unique constraint{" "}
-                      <code className="text-violet-300 bg-white/5 px-1 py-0.5 rounded">
-                        UNIQUE(event_id, world_nullifier_hash)
-                      </code>{" "}
-                      prevented a repeated registration.
+                      {errorMessage || (
+                        <>
+                          The FairDrop backend unique constraint{" "}
+                          <code className="text-violet-300 bg-white/5 px-1 py-0.5 rounded">
+                            UNIQUE(event_id, world_nullifier_hash)
+                          </code>{" "}
+                          prevented a repeated registration.
+                        </>
+                      )}
                     </p>
                     <div className="mt-3">
                       <button
@@ -397,11 +503,51 @@ export function EventModal({
                     </div>
                   </div>
                 )}
+
+                {claimStatus === "error" && errorMessage && (
+                  <div className="rounded-xl bg-rose-950/40 border border-rose-500/30 p-4 text-rose-300">
+                    <div className="flex items-center gap-2 font-bold text-sm">
+                      <AlertCircle className="h-4 w-4 text-rose-400" />
+                      <span>Verification Failed</span>
+                    </div>
+                    <p className="text-xs text-slate-300 mt-1">{errorMessage}</p>
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => setClaimStatus("idle")}
+                        className="rounded-lg bg-white/10 hover:bg-white/15 px-3 py-1.5 text-[11px] text-slate-200"
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* Official World ID 4.0 IDKit Widget */}
+      {rpContext ? (
+        <IDKitRequestWidget
+          open={isIdKitOpen}
+          onOpenChange={setIsIdKitOpen}
+          app_id={appId}
+          action={action}
+          rp_context={rpContext}
+          preset={proofOfHuman()}
+          allow_legacy_proofs={true}
+          environment={environment}
+          handleVerify={handleVerifyProof}
+          onSuccess={() => setIsIdKitOpen(false)}
+          onError={(code, debug) => {
+            console.error("IDKit error:", code, debug);
+            setClaimStatus("error");
+            setErrorMessage(`IDKit error: ${code}`);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

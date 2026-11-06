@@ -120,8 +120,11 @@ export class WorldIntegrationService {
       };
     }
 
-    // Mock verification path for unit/integration tests and local developer sandbox
-    if (this.isMockVerification || extractedNullifier.startsWith("0xmock_")) {
+    // Mock verification path ONLY for explicit test nullifiers (0xmock_...) or during automated unit test runs without RP credentials
+    const isExplicitMockProof = extractedNullifier.startsWith("0xmock_");
+    const isUnitTestEnv = process.env.NODE_ENV === "test";
+
+    if (isExplicitMockProof || (this.isMockVerification && isUnitTestEnv && !this.rpId)) {
       // Simulate rejecting invalid dummy proofs if designated as invalid
       if (extractedNullifier.includes("invalid") || primaryResponse.proof === "invalid_proof") {
         return {
@@ -148,11 +151,7 @@ export class WorldIntegrationService {
       };
     }
 
-    const baseUrl =
-      this.environment === "staging" || this.environment === "sandbox"
-        ? "https://staging-developer.world.org"
-        : "https://developer.world.org";
-
+    const baseUrl = process.env.WORLD_VERIFY_BASE_URL ?? "https://developer.world.org";
     const verifyEndpoint = `${baseUrl}/api/v4/verify/${rpIdToVerify}`;
 
     try {
