@@ -1,19 +1,17 @@
 # FairDrop
 
-**The Bot-Proof Ticket Marketplace** — a hackathon MVP focused on fairer ticket allocation through privacy-preserving unique-human verification.
+The shared starter project is currently maintained on the `dev` branch.
 
-## Current build focus
+To get the working scaffold after cloning:
 
-We are deliberately building in phases. **Phase 1 is World ID verification and event-scoped duplicate-claim prevention.** Arkiv and Arc are reserved for later phases; they are not part of the initial implementation.
+```bash
+git clone https://github.com/Mechdeta/fairDrop.git
+cd fairDrop
+git switch dev
+```
 
-## Repository workflow
+Then follow the setup instructions in the README on the `dev` branch.
 
-- `main`: stable, demo-ready work.
-- `dev`: shared integration branch.
-- `feature/<short-name>`: individual tasks, merged into `dev via pull requests.
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for team workflow and [docs/ROADMAP.md](./docs/ROADMAP.md) for milestones.
-
-## Product source
-
-The team's PRD is **FairDrop PRD v1.0**. Keep implementation decisions aligned with it, and update the repo's documentation when the team approves changes.
+- Project: https://github.com/Mechdeta/fairDrop
+- Active milestone: World ID verification and event-scoped duplicate-claim prevention.
+- Arkiv and Arc are intentionally deferred until the World-first milestone is complete.
