@@ -4,6 +4,21 @@ The hackathon permits AI assistance, but the team remains responsible for the wo
 
 Record meaningful AI-assisted work here. Add one entry per substantial task.
 
+## 2026-11-06 — Real MetaMask & Injected Web3 Wallet Provider Integration
+
+- **Tool/model:** Gemini (Antigravity)
+- **Team member:** FairDrop engineering team
+- **Task:** Enable genuine MetaMask / EIP-1193 browser wallet connection, replacing hardcoded mock address.
+- **Prompt or instruction summary:** Fix wallet connection to request real MetaMask accounts using `eth_requestAccounts`, detect injected provider, listen to `accountsChanged`, handle rejections gracefully, and provide clear fallback to demo wallet.
+- **Output used:**
+  - Upgraded `frontend/src/components/WalletModal.tsx` to query `window.ethereum` (and multi-provider arrays) using standard EIP-1193 `eth_requestAccounts`.
+  - Added detection indicator ("Detected" pill for MetaMask when extension is active).
+  - Added auto-account hydration via `eth_accounts` and real-time account change listeners (`accountsChanged`) in `frontend/app/page.tsx`.
+- **Human review, changes, and tests:**
+  - Verified TypeScript typechecks with 0 errors.
+  - Verified Vitest backend test suite: 38/38 passing.
+- **Related commit/PR:** Branch `dev`.
+
 ## 2026-11-06 — World ID Verification Fix: Real World App QR Scanning & Anti-Redirect
 
 - **Tool/model:** Gemini (Antigravity)

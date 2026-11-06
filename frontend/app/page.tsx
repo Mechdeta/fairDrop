@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Navbar } from "../src/components/Navbar";
 import { HeroSection } from "../src/components/HeroSection";
 import { EventsSection } from "../src/components/EventsSection";
@@ -21,6 +21,47 @@ export default function Home() {
   const [isArkivModalOpen, setIsArkivModalOpen] = useState(false);
   const [arkivSearchEntityId, setArkivSearchEntityId] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<FairDropEvent | null>(null);
+
+  // Auto-detect previously connected MetaMask account & listen to account switches
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const anyWindow = window as unknown as {
+      ethereum?: {
+        request: (args: { method: string; params?: unknown[] }) => Promise<string[]>;
+        on?: (event: string, handler: (...args: unknown[]) => void) => void;
+        removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
+      };
+    };
+
+    const eth = anyWindow.ethereum;
+    if (eth && typeof eth.request === "function") {
+      // Check if user is already authorized
+      eth
+        .request({ method: "eth_accounts" })
+        .then((accounts) => {
+          if (accounts && accounts.length > 0 && accounts[0]) {
+            setWalletAddress(accounts[0].trim());
+          }
+        })
+        .catch(() => {});
+
+      const handleAccountsChanged = (accounts: unknown) => {
+        const accs = accounts as string[];
+        if (accs && accs.length > 0 && accs[0]) {
+          setWalletAddress(accs[0].trim());
+        } else {
+          setWalletAddress(null);
+        }
+      };
+
+      eth.on?.("accountsChanged", handleAccountsChanged);
+
+      return () => {
+        eth.removeListener?.("accountsChanged", handleAccountsChanged);
+      };
+    }
+  }, []);
 
   const handleConnectWallet = (address: string) => {
     setWalletAddress(address);
