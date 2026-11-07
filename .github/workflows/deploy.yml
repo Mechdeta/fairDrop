@@ -1,8 +1,10 @@
-name: Deploy frontend to GitHub Pages
+name: Deploy FairDrop to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - Sahil
   workflow_dispatch:
 
 permissions:
@@ -12,16 +14,17 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
+    name: Build Frontend Static Export
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -30,24 +33,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build static frontend
-        run: npm run build --workspace frontend
+      - name: Build Next.js static export
         env:
           GITHUB_ACTIONS: "true"
           GITHUB_REPOSITORY: ${{ github.repository }}
-          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
-          NEXT_PUBLIC_WORLD_APP_ID: ${{ vars.NEXT_PUBLIC_WORLD_APP_ID }}
-          NEXT_PUBLIC_WORLD_ENVIRONMENT: ${{ vars.NEXT_PUBLIC_WORLD_ENVIRONMENT }}
+          NEXT_STATIC_EXPORT: "true"
+          NEXT_PUBLIC_BASE_PATH: "/fairDrop"
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || '' }}
+        run: npm run build --workspace frontend
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
+      - name: Ensure .nojekyll exists
+        run: touch frontend/out/.nojekyll
 
-      - name: Upload Pages artifact
+      - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: frontend/out
 
   deploy:
+    name: Deploy to GitHub Pages
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -57,3 +61,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
