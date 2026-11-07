@@ -4,6 +4,7 @@ frontend/.next/
 frontend/out/
 backend/dist/
 coverage/
+.vercel
 .env
 .env.*
 !.env.example
