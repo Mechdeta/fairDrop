@@ -120,9 +120,10 @@ arcRouter.post("/listings", async (req, res) => {
  */
 arcRouter.post("/settle", async (req, res) => {
   try {
-    const { listing_id, buyer_wallet } = req.body as {
+    const { listing_id, buyer_wallet, tx_hash } = req.body as {
       listing_id?: string;
       buyer_wallet?: string;
+      tx_hash?: string;
     };
 
     if (!listing_id || !buyer_wallet) {
@@ -142,6 +143,7 @@ arcRouter.post("/settle", async (req, res) => {
     const result = await arcService.executeSettlement({
       listingId: listing_id,
       buyerWallet: buyer_wallet,
+      txHash: tx_hash,
     });
 
     return res.status(200).json({

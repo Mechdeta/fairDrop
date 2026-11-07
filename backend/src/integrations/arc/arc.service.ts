@@ -230,6 +230,7 @@ export class ArcIntegrationService {
   public async executeSettlement(params: {
     listingId: string;
     buyerWallet: string;
+    txHash?: string;
   }): Promise<ArcSettlementResult> {
     const listing = this.listings.get(params.listingId);
     if (!listing) {
@@ -253,6 +254,7 @@ export class ArcIntegrationService {
     const estimatedGasFeeUsdc = 0.002; // Micro-cents gas on Arc native USDC
 
     const txHash =
+      params.txHash ||
       "0x" +
       crypto
         .createHash("sha256")
@@ -318,8 +320,12 @@ export class ArcIntegrationService {
     if (this.balances.has(lower)) {
       return this.balances.get(lower)!;
     }
-    // Default demo balance for hackathon evaluation: 120.50 USDC
-    return 120.5;
+    // Genuine wallet balance: accounts start with 0 unless funded on Arc
+    return 0;
+  }
+
+  public seedWalletBalance(walletAddress: string, amount: number): void {
+    this.balances.set(walletAddress.toLowerCase(), amount);
   }
 
   public getNetworkStatus(): ArcNetworkStatus {

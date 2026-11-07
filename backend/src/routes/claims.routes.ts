@@ -47,7 +47,24 @@ claimsRouter.post("/verify-and-claim", async (req, res) => {
 
     // 2. Validate that the event exists
     const repository = getClaimRepository();
-    const event = await repository.getEventById(event_id);
+    let event = await repository.getEventById(event_id);
+    if (!event) {
+      // Also check Arkiv service for events indexed on Arkiv DB-Chain
+      const arkivEvent = await arkivService.getEventById(event_id);
+      if (arkivEvent) {
+        event = {
+          id: arkivEvent.eventId,
+          name: arkivEvent.eventName,
+          description: arkivEvent.description,
+          date: arkivEvent.startTime,
+          location: `${arkivEvent.venue}, ${arkivEvent.city}`,
+          actionId: `${arkivEvent.eventId}-ticket-claim`,
+          totalTickets: arkivEvent.totalTicketSupply,
+          claimedTickets: Math.max(0, arkivEvent.totalTicketSupply - arkivEvent.availableTicketCount),
+        };
+      }
+    }
+
     if (!event) {
       return res.status(404).json({
         error: "EVENT_NOT_FOUND",
@@ -63,7 +80,14 @@ claimsRouter.post("/verify-and-claim", async (req, res) => {
     }
 
     // 3. Authoritative server-side proof verification
-    const verification = await worldService.verifyProof(proof_payload, event.actionId);
+    // Support either configured event.actionId or `${event.id}-ticket-claim`
+    const candidateAction =
+      proof_payload.action &&
+      (proof_payload.action === event.actionId || proof_payload.action === `${event.id}-ticket-claim`)
+        ? proof_payload.action
+        : event.actionId;
+
+    const verification = await worldService.verifyProof(proof_payload, candidateAction);
     if (!verification.success || !verification.nullifier) {
       return res.status(400).json({
         error: "INVALID_PROOF",
@@ -73,11 +97,15 @@ claimsRouter.post("/verify-and-claim", async (req, res) => {
     }
 
     // 4. Atomic claim creation protected by unique constraint on (event_id, world_nullifier_hash)
+    // Normalize nullifier casing to prevent case-variance bypasses
+    const normalizedNullifier = verification.nullifier.toLowerCase();
+    const normalizedWallet = wallet_address.toLowerCase();
+
     try {
       const claim = await repository.createClaim(
         event_id,
-        wallet_address,
-        verification.nullifier
+        normalizedWallet,
+        normalizedNullifier
       );
 
       // 5. Phase 2: Record allocation on Arkiv decentralized queryable data layer

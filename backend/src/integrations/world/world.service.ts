@@ -15,7 +15,13 @@ export class WorldIntegrationService {
   }
 
   public get signingKey(): string {
-    return this.customSigningKey ?? process.env.WORLD_RP_SIGNING_KEY ?? process.env.RP_SIGNING_KEY ?? "";
+    return (
+      this.customSigningKey ??
+      process.env.WORLD_SIGNING_KEY ??
+      process.env.WORLD_RP_SIGNING_KEY ??
+      process.env.RP_SIGNING_KEY ??
+      ""
+    );
   }
 
   public get environment(): "production" | "staging" | "sandbox" {
@@ -23,7 +29,7 @@ export class WorldIntegrationService {
   }
 
   public get isMockVerification(): boolean {
-    return process.env.WORLD_MOCK_VERIFICATION === "true" || process.env.NODE_ENV === "test";
+    return process.env.WORLD_MOCK_VERIFICATION === "true";
   }
 
   /**
@@ -40,8 +46,8 @@ export class WorldIntegrationService {
     const rpId = this.rpId;
 
     if (!signingKey) {
-      if (this.isMockVerification) {
-        // Return dummy deterministic context for testing/mocking when no signing key is provided
+      if (this.isMockVerification && process.env.NODE_ENV === "test") {
+        // Return dummy deterministic context ONLY for isolated unit tests with mock enabled
         return {
           rp_id: rpId || "rp_mock_fairdrop",
           nonce: "0x0000000000000000000000000000000000000000000000000000000000000001",
@@ -51,12 +57,12 @@ export class WorldIntegrationService {
         };
       }
       throw new Error(
-        "Missing WORLD_RP_SIGNING_KEY (or RP_SIGNING_KEY) in server environment. Configure it in backend/.env."
+        "Missing WORLD_SIGNING_KEY in server environment. Configure it in backend/.env."
       );
     }
 
     if (!rpId) {
-      throw new Error("Missing WORLD_RP_ID (or WORLD_APP_ID) in server environment. Configure it in backend/.env.");
+      throw new Error("Missing WORLD_RP_ID in server environment. Configure it in backend/.env.");
     }
 
     const signResult = signRequest({
@@ -64,6 +70,10 @@ export class WorldIntegrationService {
       action,
       ttl: ttlSeconds,
     });
+
+    console.log(
+      `[WorldService] Generated valid RP context for action '${action}' (RP ID: ${rpId}, expires in ${ttlSeconds}s)`
+    );
 
     return {
       rp_id: rpId,
@@ -102,7 +112,7 @@ export class WorldIntegrationService {
       };
     }
 
-    // Extract candidate nullifier from first response
+    // Extract candidate nullifier from primary response
     const primaryResponse = proofPayload.responses[0];
     const extractedNullifier = primaryResponse?.nullifier;
 
@@ -114,25 +124,37 @@ export class WorldIntegrationService {
       };
     }
 
-    // Mock verification path for unit/integration tests and local developer sandbox
-    if (this.isMockVerification || extractedNullifier.startsWith("0xmock_")) {
-      // Simulate rejecting invalid dummy proofs if designated as invalid
+    const isExplicitMockProof =
+      extractedNullifier.startsWith("0xmock_") || extractedNullifier.startsWith("0xsim_");
+
+    // Real Mode: Reject any mock or simulated nullifiers
+    if (!this.isMockVerification && isExplicitMockProof) {
+      console.warn(`[WorldService] Rejected mock proof nullifier in live verification mode.`);
+      return {
+        success: false,
+        error: "MOCK_PROOF_REJECTED",
+        detail: "Mock proofs are not accepted in live verification mode. Please verify using World App.",
+      };
+    }
+
+    // Isolated Unit Test Mode: ONLY when WORLD_MOCK_VERIFICATION=true AND running in test environment
+    if (this.isMockVerification && process.env.NODE_ENV === "test") {
       if (extractedNullifier.includes("invalid") || primaryResponse.proof === "invalid_proof") {
         return {
           success: false,
           error: "INVALID_PROOF",
-          detail: "Mock verification detected an invalid proof flag.",
+          detail: "Simulated verification detected an invalid proof flag.",
         };
       }
 
       return {
         success: true,
         nullifier: extractedNullifier,
-        environment: "mock-environment",
+        environment: "simulated-environment",
       };
     }
 
-    // Live verification against official World Developer API v4
+    // Live Authoritative verification against official World Developer API v4
     const rpIdToVerify = this.rpId;
     if (!rpIdToVerify) {
       return {
@@ -142,14 +164,11 @@ export class WorldIntegrationService {
       };
     }
 
-    const baseUrl =
-      this.environment === "staging" || this.environment === "sandbox"
-        ? "https://staging-developer.world.org"
-        : "https://developer.world.org";
-
+    const baseUrl = process.env.WORLD_VERIFY_BASE_URL ?? "https://developer.world.org";
     const verifyEndpoint = `${baseUrl}/api/v4/verify/${rpIdToVerify}`;
 
     try {
+      console.log(`[WorldService] Verifying proof against ${verifyEndpoint} (action: ${expectedAction || proofPayload.action})`);
       const response = await fetch(verifyEndpoint, {
         method: "POST",
         headers: {
@@ -164,21 +183,32 @@ export class WorldIntegrationService {
         nullifier?: string;
         code?: string;
         detail?: string;
+        message?: string;
         results?: Array<{ identifier?: string; success?: boolean; nullifier?: string; code?: string; detail?: string }>;
       };
+
+      console.log(`[WorldService] Verification API response status: ${response.status}, success: ${data.success}`);
 
       if (!response.ok || !data.success) {
         return {
           success: false,
           error: data.code ?? "VERIFICATION_FAILED",
-          detail: data.detail ?? `World API responded with status ${response.status}`,
+          detail: data.detail ?? data.message ?? `World API responded with status ${response.status}`,
         };
       }
 
+      // Authoritative nullifier extracted directly from World API v4 response
       const verifiedNullifier =
         data.nullifier ??
-        data.results?.[0]?.nullifier ??
-        extractedNullifier;
+        data.results?.[0]?.nullifier;
+
+      if (!verifiedNullifier) {
+        return {
+          success: false,
+          error: "NULLIFIER_MISSING",
+          detail: "World verification succeeded but no authoritative nullifier was returned by the official API.",
+        };
+      }
 
       return {
         success: true,
@@ -186,7 +216,8 @@ export class WorldIntegrationService {
         environment: this.environment,
       };
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown error during proof verification.";
+      const message = err instanceof Error ? err.message : "Unknown error connecting to World API.";
+      console.error(`[WorldService] Network error during proof verification: ${message}`);
       return {
         success: false,
         error: "NETWORK_ERROR",

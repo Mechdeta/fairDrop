@@ -91,71 +91,6 @@ export function WorldIdClaimWidget({
     }
   };
 
-  // Local simulator helper for development & grading without physical World App scanning
-  const handleSimulateProof = async (isDuplicate: boolean = false) => {
-    if (!walletAddress) {
-      setClaimStatus("error");
-      setErrorMessage("Please connect an EVM wallet first.");
-      return;
-    }
-
-    setIsVerifyingOnServer(true);
-    setClaimStatus("verifying");
-    setErrorMessage(null);
-
-    // Fixed nullifier for duplicate testing or random for fresh human
-    const testNullifier = isDuplicate
-      ? "0xmock_human_duplicate_tester_fixed"
-      : `0xmock_human_${Date.now().toString(16)}`;
-
-    const mockResult: IDKitResult = {
-      protocol_version: "4.0",
-      nonce: "0x1234567890abcdef",
-      action: event.actionId,
-      environment: "sandbox",
-      responses: [
-        {
-          identifier: "proof_of_human",
-          nullifier: testNullifier,
-          proof: ["0x1", "0x2", "0x3", "0x4", "0x5"],
-          issuer_schema_id: 1,
-          expires_at_min: Math.floor(Date.now() / 1000) + 3600,
-        },
-      ],
-    };
-
-    try {
-      const claimResponse = await submitClaimProof({
-        eventId: event.id,
-        walletAddress,
-        proofPayload: mockResult,
-      });
-
-      if (!claimResponse.success || !claimResponse.claim) {
-        if (claimResponse.error === "DUPLICATE_CLAIM") {
-          setClaimStatus("duplicate");
-          setErrorMessage(
-            claimResponse.message ?? "This World ID has already claimed a ticket for this event."
-          );
-        } else {
-          setClaimStatus("error");
-          setErrorMessage(claimResponse.detail ?? claimResponse.message ?? "Verification rejected.");
-        }
-        return;
-      }
-
-      setSuccessfulClaim(claimResponse.claim);
-      setClaimStatus("success");
-      onClaimSuccess?.(claimResponse.claim);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Simulation failed.";
-      setClaimStatus("error");
-      setErrorMessage(msg);
-    } finally {
-      setIsVerifyingOnServer(false);
-    }
-  };
-
   return (
     <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-6 shadow-2xl shadow-violet-950/20 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-4">
@@ -237,28 +172,6 @@ export function WorldIdClaimWidget({
             ? "Verifying Proof..."
             : "Verify with World ID & Claim"}
         </button>
-
-        {/* Development Simulators for testing */}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => handleSimulateProof(false)}
-            disabled={isVerifyingOnServer || !walletAddress}
-            title="Simulates a unique human proof via the backend mock/simulator"
-            className="rounded-xl border border-white/15 bg-white/5 px-3 py-3 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white disabled:opacity-50"
-          >
-            Simulate New Human
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSimulateProof(true)}
-            disabled={isVerifyingOnServer || !walletAddress}
-            title="Simulates claiming with a fixed nullifier twice to verify duplicate rejection"
-            className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-xs font-medium text-amber-300 hover:bg-amber-500/20 disabled:opacity-50"
-          >
-            Simulate Duplicate Test
-          </button>
-        </div>
       </div>
 
       {/* Official World ID 4.0 IDKit Widget */}

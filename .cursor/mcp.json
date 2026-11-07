@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "world-docs": {
+      "url": "https://docs.world.org/mcp"
+    },
+    "world-developer-portal": {
+      "url": "https://developer.world.org/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${env:WORLD_DEV_PORTAL_API_KEY}"
+      }
+    }
+  }
+}
+

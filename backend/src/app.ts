@@ -10,9 +10,13 @@ import { worldRouter } from "./routes/world.routes.js";
 
 export const app = express();
 
-const allowedOrigin = process.env.CORS_ORIGIN ?? "http://localhost:3000";
-
-app.use(cors({ origin: allowedOrigin }));
+// Permissive CORS for local development, LAN devices (phones), and preview domains
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Initialize database repository if needed
