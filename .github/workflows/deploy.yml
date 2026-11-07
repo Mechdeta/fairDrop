@@ -3,6 +3,7 @@ name: Deploy FairDrop to GitHub Pages
 on:
   push:
     branches:
+      - main
       - Sahil
   workflow_dispatch:
 
